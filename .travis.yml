@@ -1,0 +1,21 @@
+language: csharp
+dist: xenial
+sudo: required
+mono: none
+dotnet: 2.0.0
+before_script:
+- curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+- curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/microsoft.list
+- sudo apt-get update && sudo apt-get install -y powershell
+script:
+- pwsh -f ci/set-version.ps1
+deploy:
+  skip_cleanup: true
+  provider: script
+  script: pwsh -f ci/publish.ps1
+  on:
+    branch: master
+    condition: "$TRAVIS_PULL_REQUEST = false"
+env:
+  global:
+    secure: ll/RU6KKtz7hSCFJTBbqwr7m/STCAXnW87eXOVH48qmbLDUD0lczoSbLAif1qKoLzhAOvZVS2Ybjms9KHamlkh/kyvkiMmYb/cZ7Dci6p0ygfeAHc52KHtOCF+iWVJAr+8uBNMjPL73JlS3HGsTyi1a27AKdRvttf7YXs3amyRLEVSq6eNwT81Z7toFXTSnXiqzxALkJYxMZZHT0M9BxvuzDxQfItEg/FFmz9oSpiZZ/BegO1bXRUJZivygJjd78FrxpSuudOWZb0kcH33qvITXlgdiOBOkNTc9pB0Yc65nNhKrh8XoWYzxWXy8uNF1IEVfQjtapreoZc9ECCkPNtWAdQW678kESvJoYS7fSIiX0cBx3XawRLrHRaT2qJRu3MoQGd8+b+hYBQCLWUSOUusMGWnMe/DdiOGAg6c8+G9N5O2a8SYy3MtMbLFal+uuu1mTlizc+ZE1fAp9CevfvHmlTroj5IcfV7N+qB7xgn4LGhw5DQFdRDrBp0U5l8f3hrzcDDL8CO34sCPxYBbsXScFOzxUMXCwuiuPln+zwGJkUJjIjpb0OkUApf6rYt+P88vsV7529TkqGY0ayS/he4QUwiJ4wEvhQYtnC7wBCFxx+5eCVlXjyykOwbFEc1//eYNJ+BIRL1V3lAxcVlR+vRbEI8z4lcPmyV/hL0K1eXu4=

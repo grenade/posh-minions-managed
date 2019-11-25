@@ -55,19 +55,16 @@
   # FormatsToProcess = @()
 
   # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-  NestedModules = @(
-    #'src/log.psm1'
-  )
+  NestedModules = @()
 
   # Functions to export from this module and nested modules
-  FunctionsToExport = @(
-
-    # src/log.psm1
-   'Write-Log'
-  )
+  FunctionsToExport = @()
 
   # Cmdlets to export from this module
-  CmdletsToExport = @()
+  CmdletsToExport = @(
+    # src/posh-minions-managed.psm1
+   'Write-Log'
+  )
 
   # Variables to export from this module
   VariablesToExport = @()
