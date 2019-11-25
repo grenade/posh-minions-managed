@@ -63,7 +63,10 @@
   # Cmdlets to export from this module
   CmdletsToExport = @(
     # src/posh-minions-managed.psm1
-   'Write-Log'
+   'Write-Log',
+
+    # src/cloud.psm1
+   'Get-CloudPlatform'
   )
 
   # Variables to export from this module
