@@ -60,14 +60,15 @@
   # Functions to export from this module and nested modules
   FunctionsToExport = @(
     # src/posh-minions-managed.psm1
-   'Write-Log',
+    'Write-Log',
 
     # src/cloud.psm1
-   'Get-CloudPlatform',
+    'Get-CloudPlatform',
 
     # src/sysprep.psm1
-   'New-UnattendFile',
-   'New-Password'
+    'Convert-WindowsImage',
+    'New-UnattendFile',
+    'New-Password'
   )
 
   # Cmdlets to export from this module
@@ -84,17 +85,33 @@
 
   # List of all files packaged with this module
   FileList = @(
-    './posh-minions-managed.psd1',
-    './src/posh-minions-managed.psm1',
-    './src/cloud.psm1',
-    './src/sysprep.psm1'
+    # Test-ModuleManifest is broken on linux (directory separator) and will throw exceptions when it can't cope with finding these files
+    #'posh-minions-managed.psd1',
+    #'src/posh-minions-managed.psm1',
+    #'src/cloud.psm1',
+    #'src/sysprep.psm1'
   )
 
   # Private data to pass to the module specified in RootModule/ModuleToProcess
   PrivateData = @{
     PSData = @{     
       # Tags applied to this module. These help with module discovery in online galleries.
-      # Tags = @('software')
+      Tags = @(
+        'ami',
+        'aws',
+        'azure',
+        'cloud',
+        'ec2',
+        'gcloud',
+        'image',
+        'iso',
+        'password',
+        'platform',
+        'sysprep',
+        'vhd'
+        'unattend',
+        'vhd'
+      )
       
       # A URL to the license for this module.
       LicenseUri = 'https://opensource.org/licenses/MIT'
