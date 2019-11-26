@@ -83,7 +83,12 @@
   # ModuleList = @()
 
   # List of all files packaged with this module
-  # FileList = @()
+  FileList = @(
+    './posh-minions-managed.psd1',
+    './src/posh-minions-managed.psm1',
+    './src/cloud.psm1',
+    './src/sysprep.psm1'
+  )
 
   # Private data to pass to the module specified in RootModule/ModuleToProcess
   PrivateData = @{
