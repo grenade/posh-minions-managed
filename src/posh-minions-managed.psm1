@@ -68,7 +68,7 @@ function Write-Log {
     ),
 
     [ValidateSet('Error', 'Information', 'FailureAudit', 'SuccessAudit', 'Warning')]
-    [int] $entryType = $(
+    [string] $entryType = $(
       switch ($severity) {
         'trace' {
           'SuccessAudit'
@@ -93,19 +93,28 @@ function Write-Log {
     [string] $logName = 'Application'
   )
   begin {
-    if ((-not ([System.Diagnostics.EventLog]::Exists($logName))) -or (-not ([System.Diagnostics.EventLog]::SourceExists($source)))) {
-      try {
-        New-EventLog -LogName $logName -Source $source
-      } catch {
-        Write-Error -Exception $_.Exception -message ('failed to create event log source: {0}/{1}' -f $logName, $source)
+    $platformSupported = $true;
+    try {
+      if ((-not ([System.Diagnostics.EventLog]::Exists($logName))) -or (-not ([System.Diagnostics.EventLog]::SourceExists($source)))) {
+        try {
+          New-EventLog -LogName $logName -Source $source
+        } catch {
+          Write-Error -Exception $_.Exception -message ('failed to create event log source: {0}/{1}' -f $logName, $source)
+        }
       }
+    } catch [PlatformNotSupportedException] {
+      $platformSupported = $false;
     }
   }
   process {
-    try {
-      Write-EventLog -LogName $logName -Source $source -EntryType $entryType -EventId $eventId -Message $message
-    } catch {
-      Write-Verbose -Message ('failed to write to event log source: {0}/{1}. the log message was: {2}. the exception message was: {3}' -f $logName, $source, $message, $_.Exception.Message)
+    if ($platformSupported) {
+      try {
+        Write-EventLog -LogName $logName -Source $source -EntryType $entryType -EventId $eventId -Message $message
+      } catch {
+        Write-Verbose -Message ('failed to write to event log source: {0}/{1}. the log message was: {2}. the exception message was: {3}' -f $logName, $source, $message, $_.Exception.Message)
+      }
+    } else {
+      Write-Host -object ('[{0}] {1}' -f $severity, $message) -ForegroundColor @{ 'info' = 'White'; 'error' = 'Red'; 'warn' = 'DarkYellow'; 'debug' = 'DarkGray'; 'trace' = 'DarkGray' }[$severity]
     }
   }
   end {

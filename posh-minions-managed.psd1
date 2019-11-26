@@ -58,16 +58,19 @@
   NestedModules = @()
 
   # Functions to export from this module and nested modules
-  FunctionsToExport = @()
-
-  # Cmdlets to export from this module
-  CmdletsToExport = @(
+  FunctionsToExport = @(
     # src/posh-minions-managed.psm1
    'Write-Log',
+
+    # src/sysprep.psm1
+   'New-UnattendFile',
 
     # src/cloud.psm1
    'Get-CloudPlatform'
   )
+
+  # Cmdlets to export from this module
+  CmdletsToExport = @()
 
   # Variables to export from this module
   VariablesToExport = @()
