@@ -3,6 +3,13 @@ function New-UnattendFile {
   .SYNOPSIS
     Creates a Windows Unattend file
   .DESCRIPTION
+
+  .EXAMPLE
+    These examples show how to call the New-UnattendFile function with named parameters.
+    # linux:
+    PS C:\> New-UnattendFile -destinationPath 'unattend.xml' -productKey 'W269N-WFGWX-YVC9B-4J6C9-T83GX' -registeredOwner 'RelOps Mozilla' -registeredOrganization 'Mozilla Corporation' -administratorPassword $(openssl rand -base64 12)
+    # windows:
+    PS C:\> New-UnattendFile -destinationPath 'unattend.xml' -productKey 'W269N-WFGWX-YVC9B-4J6C9-T83GX' -registeredOwner 'RelOps Mozilla' -registeredOrganization 'Mozilla Corporation' -administratorPassword (New-Password)
   #>
   [CmdletBinding()]
   param (
@@ -276,7 +283,7 @@ function New-UnattendFile {
     try {
       $unattend = $template.Clone();
       $order = 0;
-      $flc = $unattend.CreateElement('FirstLogonCommands');
+      $flc = $unattend.CreateElement('FirstLogonCommands', $unattend.DocumentElement.NamespaceURI);
       foreach ($command in $commands) {
         $sc = $unattend.CreateElement('SynchronousCommand');
         $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add');
@@ -309,7 +316,36 @@ function New-UnattendFile {
       $flcComponent.AppendChild($flc);
       $unattend.Save($destinationPath);
     } catch {
-      throw
+      Write-Log -message ('{0} :: exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.Message) -severity 'warn';
+      if ($_.Exception.InnerException) {
+        Write-Log -message ('{0} :: inner exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.InnerException.Message) -severity 'warn';
+      }
+    }
+  }
+  end {
+    Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+}
+
+function New-Password {
+  <#
+  .SYNOPSIS
+    Creates a new random password
+  .DESCRIPTION
+  #>
+  [CmdletBinding()]
+  param (
+    [int] $length = 12,
+    [int] $nonAlphaChars = 3
+  )
+  begin {
+    Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+  process {
+    try {
+      Add-Type -AssemblyName 'System.Web';
+      return ([System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars));
+    } catch {
       Write-Log -message ('{0} :: exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.Message) -severity 'warn';
       if ($_.Exception.InnerException) {
         Write-Log -message ('{0} :: inner exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.InnerException.Message) -severity 'warn';

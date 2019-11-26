@@ -64,6 +64,7 @@
 
     # src/sysprep.psm1
    'New-UnattendFile',
+   'New-Password',
 
     # src/cloud.psm1
    'Get-CloudPlatform'
