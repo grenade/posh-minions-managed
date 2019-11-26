@@ -1,7 +1,7 @@
 begin {
   [string] $module = 'posh-minions-managed';
   [string] $path = ('{0}.psd1' -f $module);
-  [string] $match = '0.0.0';
+  [string] $match = '\d+\.\d+\.\d+';
   try {
     $version = (Find-Module -Repository 'PSGallery' -Name $module).Version.Split('.');
     $replace = ('{0}.{1}.{2}' -f $version[0], $version[1], (([int] $version[2]) + 1));

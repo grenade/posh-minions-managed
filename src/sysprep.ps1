@@ -346,10 +346,7 @@ function New-Password {
       Add-Type -AssemblyName 'System.Web';
       return ([System.Web.Security.Membership]::GeneratePassword($length, $nonAlphaChars));
     } catch {
-      Write-Log -message ('{0} :: exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.Message) -severity 'warn';
-      if ($_.Exception.InnerException) {
-        Write-Log -message ('{0} :: inner exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.InnerException.Message) -severity 'warn';
-      }
+      return (& openssl @('rand', '-base64', $length));
     }
   }
   end {

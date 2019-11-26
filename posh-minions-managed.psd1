@@ -10,7 +10,7 @@
   GUID = 'f11f38c0-b9f6-4314-8f00-e277872fed72'
 
   # Author of this module
-  Author = 'Rob Thijssen (grenade.github.io)'
+  Author = 'Rob Thijssen (https://grenade.github.io)'
 
   # Company or vendor of this module
   CompanyName = ''
@@ -62,12 +62,12 @@
     # src/posh-minions-managed.psm1
    'Write-Log',
 
+    # src/cloud.psm1
+   'Get-CloudPlatform',
+
     # src/sysprep.psm1
    'New-UnattendFile',
-   'New-Password',
-
-    # src/cloud.psm1
-   'Get-CloudPlatform'
+   'New-Password'
   )
 
   # Cmdlets to export from this module
