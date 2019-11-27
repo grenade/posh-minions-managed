@@ -13,6 +13,7 @@ function New-UnattendFile {
   #>
   [CmdletBinding()]
   param (
+    [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
     [string] $destinationPath,
 
@@ -24,10 +25,12 @@ function New-UnattendFile {
     [string] $computerName = '*',
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
+    [Parameter(Mandatory = $true)]
     [string] $administratorPassword,
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
+    [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
     [string] $productKey,
 

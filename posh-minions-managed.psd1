@@ -40,7 +40,23 @@
   # ProcessorArchitecture = ''
 
   # Modules that must be imported into the global environment prior to importing this module
-  # RequiredModules = @()
+  RequiredModules = @(
+    @{
+      ModuleName='AWS.Tools.S3';
+      ModuleVersion='4.0.1.1';
+      GUID='b4e504bd-3d14-4563-918a-91025140eba4'
+    },
+    @{
+      ModuleName='Azure.Storage';
+      ModuleVersion='4.6.1';
+      GUID='00612bca-fa22-401d-a671-9cc48b010e3b'
+    },
+    @{
+      ModuleName='GoogleCloud';
+      ModuleVersion='1.0.1.10';
+      GUID='e74637e6-7a4e-422d-bb9c-ca50809d78bb'
+    }
+  )
 
   # Assemblies that must be loaded prior to importing this module
   # RequiredAssemblies = @()
@@ -64,6 +80,7 @@
 
     # src/cloud.psm1
     'Get-CloudPlatform',
+    'Get-CloudBucketResource',
 
     # src/sysprep.psm1
     'Convert-WindowsImage',
