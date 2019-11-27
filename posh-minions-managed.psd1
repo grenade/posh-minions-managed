@@ -1,7 +1,7 @@
 @{
 
   # Script module or binary module file associated with this manifest
-  RootModule = 'src/posh-minions-managed.psm1'
+  RootModule = 'src\posh-minions-managed.psm1'
 
   # Version number of this module.
   ModuleVersion = '0.0.0'
@@ -42,24 +42,26 @@
   # Modules that must be imported into the global environment prior to importing this module
   RequiredModules = @(
     @{
-      ModuleName='AWS.Tools.S3';
+      ModuleName='AWS.Tools.S3'; # required by src/cloud.psm1 Get-CloudBucketResource
       ModuleVersion='4.0.1.1';
       GUID='b4e504bd-3d14-4563-918a-91025140eba4'
     },
     @{
-      ModuleName='Azure.Storage';
+      ModuleName='Azure.Storage'; # required by src/cloud.psm1 Get-CloudBucketResource
       ModuleVersion='4.6.1';
       GUID='00612bca-fa22-401d-a671-9cc48b010e3b'
     },
     @{
-      ModuleName='GoogleCloud';
+      ModuleName='GoogleCloud'; # required by src/cloud.psm1 Get-CloudBucketResource
       ModuleVersion='1.0.1.10';
       GUID='e74637e6-7a4e-422d-bb9c-ca50809d78bb'
     }
   )
 
   # Assemblies that must be loaded prior to importing this module
-  # RequiredAssemblies = @()
+  RequiredAssemblies = @(
+    'System.Web.dll' # required by src/sysprep.psm1 New-Password
+  )
 
   # Script files (.ps1) that are run in the caller's environment prior to importing this module
   # ScriptsToProcess = @()
@@ -71,7 +73,10 @@
   # FormatsToProcess = @()
 
   # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-  NestedModules = @()
+  NestedModules = @(
+    'src\cloud.psm1',
+    'src\sysprep.psm1'
+  )
 
   # Functions to export from this module and nested modules
   FunctionsToExport = @(
@@ -102,11 +107,10 @@
 
   # List of all files packaged with this module
   FileList = @(
-    # Test-ModuleManifest is broken on linux (directory separator) and will throw exceptions when it can't cope with finding these files
-    #'posh-minions-managed.psd1',
-    #'src/posh-minions-managed.psm1',
-    #'src/cloud.psm1',
-    #'src/sysprep.psm1'
+    'posh-minions-managed.psd1',
+    'src\posh-minions-managed.psm1',
+    'src\cloud.psm1',
+    'src\sysprep.psm1'
   )
 
   # Private data to pass to the module specified in RootModule/ModuleToProcess

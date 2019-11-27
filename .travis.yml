@@ -1,18 +1,13 @@
-language: csharp
-dist: xenial
-sudo: required
-mono: none
-dotnet: 2.0.0
+os: windows
+language: minimal
 before_script:
-- curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-- curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/microsoft.list
-- sudo apt-get update && sudo apt-get install -y powershell
+  - powershell -executionpolicy bypass -f ci/bootstrap.ps1
 script:
-- pwsh -f ci/set-version.ps1
+  - powershell -executionpolicy bypass -f ci/set-version.ps1
 deploy:
   skip_cleanup: true
   provider: script
-  script: pwsh -f ci/publish.ps1
+  script: powershell -executionpolicy bypass -f ci/publish.ps1
   on:
     branch: master
     condition: "$TRAVIS_PULL_REQUEST = false"
