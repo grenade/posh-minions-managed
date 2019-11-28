@@ -22,7 +22,9 @@
   Description = 'a powershell library for spawning, manipulating and slaughtering cloud minions'
 
   # Minimum version of the Windows PowerShell engine required by this module
-  PowerShellVersion = '2.0'
+  # posh-minions-managed relies on third party libraries so the version below denotes
+  # the highest minimum version of all dependency libraries (see RequiredModules below).
+  PowerShellVersion = '5.1'
 
   # Name of the Windows PowerShell host required by this module
   # PowerShellHostName = ''
@@ -41,6 +43,11 @@
 
   # Modules that must be imported into the global environment prior to importing this module
   RequiredModules = @(
+    @{
+      ModuleName='AWS.Tools.Common'; # required by src/cloud.psm1 Get-CloudCredentialAvailability
+      ModuleVersion='4.0.1.1';
+      GUID='e5b05bf3-9eee-47b2-81f2-41ddc0501b86'
+    },
     @{
       ModuleName='AWS.Tools.S3'; # required by src/cloud.psm1 Get-CloudBucketResource
       ModuleVersion='4.0.1.1';
@@ -118,6 +125,13 @@
     PSData = @{     
       # Tags applied to this module. These help with module discovery in online galleries.
       Tags = @(
+        # compatibility tags (see: https://docs.microsoft.com/en-us/powershell/scripting/gallery/concepts/publishing-guidelines?view=powershell-6#tag-your-package-with-the-compatible-pseditions-and-platforms)
+        'PSEdition_Core',
+        'PSEdition_Desktop',
+        'Linux',
+        'Windows',
+
+        # generic usage tags
         'ami',
         'aws',
         'azure',
@@ -126,14 +140,12 @@
         'gcloud',
         'image',
         'iso',
-        'Linux',
         'password',
         'platform',
         'sysprep',
         'vhd'
         'unattend',
-        'vhd',
-        'Windows'
+        'vhd'
       )
       
       # A URL to the license for this module.

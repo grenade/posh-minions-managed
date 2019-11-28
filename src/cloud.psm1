@@ -40,7 +40,7 @@ function Get-CloudBucketResource {
   #>
   param (
     [Parameter(Mandatory = $true)]
-    [ValidateSet('amazon-s3', 's3', 'azure-blob-storage', 'az', 'google-cloud-storage', 'gcs')]
+    [ValidateSet('amazon', 'aws', 's3', 'azure', 'azure-blob-storage', 'az', 'google', 'google-cloud-storage', 'gcloud', 'gcp', 'gcs')]
     [string] $platform,
 
     [Parameter(Mandatory = $true)]
@@ -76,18 +76,26 @@ function Get-CloudBucketResource {
         throw [System.ArgumentException]('destination file exists: {0}. use `-overwrite` switch or specify a destination file path that does not exist.' -f $destination);
       }
       switch -regex ($platform) {
-        'amazon-s3|s3' {
+        'amazon|aws|s3' {
+          if (-not (Get-CloudCredentialAvailability -platform $platform)) {
+            throw ('no credentials detected for platform: {0}' -f $platform);
+          }
+          # https://docs.aws.amazon.com/powershell/latest/reference/items/Copy-S3Object.html
           Copy-S3Object -BucketName $bucket -Key $key -LocalFile $destination;
+          break;
         }
-        'azure-blob-storage|az' {
+        'azure|azure-blob-storage|az' {
           # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstoragefilecontent?view=azps-1.8.0
           Get-AzStorageFileContent -ShareName $bucket -Path $key -Destination $destination;
+          break;
         }
-        'google-cloud-storage|gcs' {
+        'google|google-cloud-storage|gcloud|gcp|gcs' {
           Read-GcsObject -Bucket $bucket -ObjectName $key -OutFile $destination;
+          break;
         }
         default {
-          throw [System.ArgumentException]('unsupported platform: {0}. use: amazon-s3|azure-blob-storage|google-cloud-storage' -f $platform);
+          throw [System.ArgumentException]('unsupported platform: {0}. use: amazon|azure|google' -f $platform);
+          break;
         }
       }
       if (Test-Path -Path $destination -ErrorAction SilentlyContinue) {
@@ -99,6 +107,43 @@ function Get-CloudBucketResource {
       Write-Log -message ('{0} :: exception fetching {1} from {2}/{3}/{4}: {5}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key, $_.Exception.Message) -severity 'error';
       if ($_.Exception.InnerException) {
         Write-Log -message ('{0} :: inner exception fetching {1} from {2}/{3}/{4}: {5}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key, $_.Exception.InnerException.Message) -severity 'error';
+      }
+    }
+  }
+  end {
+    Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+}
+
+function Get-CloudCredentialAvailability {
+  <#
+  .SYNOPSIS
+    Downloads a file resource from a cloud bucket
+  #>
+  param (
+    [ValidateSet('amazon', 'aws', 's3', 'azure', 'azure-blob-storage', 'az', 'google', 'google-cloud-storage', 'gcloud', 'gcp', 'gcs')]
+    [string] $platform
+  )
+  begin {
+    Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+  process {
+    switch -regex ($platform) {
+      'amazon|aws|s3' {
+        return ((@(Get-AWSCredential -ErrorAction SilentlyContinue).Length -gt 0) -or (@(Get-AWSCredential -ListProfileDetail -ErrorAction SilentlyContinue).Length -gt 0));
+        break;
+      }
+      'azure|azure-blob-storage|az' {
+        throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
+        break;
+      }
+      'google|google-cloud-storage|gcloud|gcp|gcs' {
+        throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
+        break;
+      }
+      default {
+        throw [System.ArgumentException]('unsupported platform: {0}. use: amazon-s3|azure-blob-storage|google-cloud-storage' -f $platform);
+        break;
       }
     }
   }
