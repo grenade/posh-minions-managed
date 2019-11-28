@@ -38,7 +38,7 @@ function Get-CloudBucketResource {
   .SYNOPSIS
     Downloads a file resource from a cloud bucket
   #>
-  param {
+  param (
     [Parameter(Mandatory = $true)]
     [ValidateSet('amazon-s3', 's3', 'azure-blob-storage', 'az', 'google-cloud-storage', 'gcs')]
     [string] $platform,
@@ -55,7 +55,7 @@ function Get-CloudBucketResource {
     [switch] $overwrite = $false,
 
     [switch] $force = $false
-  }
+  )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
   }
