@@ -82,6 +82,7 @@
   # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
   NestedModules = @(
     'src\cloud.psm1',
+    'src\convert-windowsimage.psm1',
     'src\sysprep.psm1'
   )
 
@@ -94,8 +95,10 @@
     'Get-CloudPlatform',
     'Get-CloudBucketResource',
 
-    # src/sysprep.psm1
+    # src/convert-windowsimage.psm1
     'Convert-WindowsImage',
+
+    # src/sysprep.psm1
     'New-UnattendFile',
     'New-Password'
   )
@@ -117,6 +120,7 @@
     'posh-minions-managed.psd1',
     'src\posh-minions-managed.psm1',
     'src\cloud.psm1',
+    'src\convert-windowsimage.psm1',
     'src\sysprep.psm1'
   )
 
