@@ -47,9 +47,9 @@
       GUID='b4e504bd-3d14-4563-918a-91025140eba4'
     },
     @{
-      ModuleName='Azure.Storage'; # required by src/cloud.psm1 Get-CloudBucketResource
-      ModuleVersion='4.6.1';
-      GUID='00612bca-fa22-401d-a671-9cc48b010e3b'
+      ModuleName='Az.Storage'; # required by src/cloud.psm1 Get-CloudBucketResource
+      ModuleVersion='1.9.0';
+      GUID='dfa9e4ea-1407-446d-9111-79122977ab20'
     },
     @{
       ModuleName='GoogleCloud'; # required by src/cloud.psm1 Get-CloudBucketResource

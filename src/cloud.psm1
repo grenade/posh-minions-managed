@@ -80,7 +80,7 @@ function Get-CloudBucketResource {
           Copy-S3Object -BucketName $bucket -Key $key -LocalFile $destination;
         }
         'azure-blob-storage|az' {
-          Get-AzureStorageFileContent -ShareName $bucket -Path $key -Destination $destination;
+          Get-AzStorageFileContent -ShareName $bucket -Path $key -Destination $destination -PreserveSMBAttribute;
         }
         'google-cloud-storage|gcs' {
           Read-GcsObject -Bucket $bucket -ObjectName $key -OutFile $destination;
