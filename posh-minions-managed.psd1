@@ -126,12 +126,14 @@
         'gcloud',
         'image',
         'iso',
+        'Linux',
         'password',
         'platform',
         'sysprep',
         'vhd'
         'unattend',
-        'vhd'
+        'vhd',
+        'Windows'
       )
       
       # A URL to the license for this module.
