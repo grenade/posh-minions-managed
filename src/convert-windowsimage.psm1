@@ -756,13 +756,16 @@ Convert-WindowsImage
                 }
                 Catch
                 {
+                    Try {
+                        # WinPE DISM does not support online queries.  This will throw on non-WinPE machines
+                        $winpeVersion = (Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\WinPE').Version
 
-                  # WinPE DISM does not support online queries.  This will throw on non-WinPE machines
-
-                    $winpeVersion = (Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\WinPE').Version
-
-                    Write-Verbose -Message "Running WinPE version $winpeVersion"
-
+                        Write-Verbose -Message "Running WinPE version $winpeVersion"
+                    }
+                    Catch
+                    {
+                        Write-Verbose -Message "Not running WinPE"
+                    }
                     $hyperVEnabled = $False
                 }
             }
