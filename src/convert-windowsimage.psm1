@@ -4416,7 +4416,15 @@ Set-TokenPrivilege
 
     $Type = Add-Type -TypeDefinition $Definition -PassThru
 
-    $Type[0]::EnablePrivilege( $ProcessHandle, $Privilege, $Disable )
+    Try
+    {
+        $Type[0]::EnablePrivilege( $ProcessHandle, $Privilege, $Disable )
+        Write-Verbose -Message "$(if ($Disable) { 'unset' } else { 'set' }) token privilege $Privilege"
+    }
+    Catch
+    {
+        Write-Error -Message "failed to $(if ($Disable) { 'unset' } else { 'set' }) token privilege $Privilege"
+    }
 }
 
 # In version 10.0.14300.1000, the below two functions were changed from leveraging
@@ -4459,10 +4467,12 @@ public static extern long RegLoadKey(int hKey, String lpSubKey, String lpFile);
         $Reg = Add-Type -MemberDefinition $Definition -Name "ClassLoad" -Namespace "Win32Functions" -PassThru
 
         $Result = $Reg::RegLoadKey( $HKLM, $mountKey, $Hive )
+        Write-Verbose -Message "mounted hive $Hive at mount point HKLM:\\$mountKey"
 
     }
     Catch
     {
+        Write-Error -Message "failed to mount hive $Hive at mount point HKLM:\\$mountKey"
         Throw
     }
 
@@ -4505,10 +4515,12 @@ public static extern int RegUnLoadKey(Int32 hKey,string lpSubKey);
         $Reg = Add-Type -MemberDefinition $Definition -Name "ClassUnload" -Namespace "Win32Functions" -PassThru
 
         $Result = $Reg::RegUnLoadKey( $HKLM, $HiveMountPoint )
+        Write-Verbose -Message "dismounted hive mount point HKLM:\\$HiveMountPoint"
 
     }
     Catch
     {
+        Write-Error -Message "failed to dismount hive mount point HKLM:\\$HiveMountPoint"
         Throw
     }
 
