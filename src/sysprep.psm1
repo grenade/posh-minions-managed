@@ -138,7 +138,7 @@ function New-UnattendFile {
       }
     ),
 
-    [xml] $template = [xml] @"
+    [xml] $template = @"
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
   <settings pass="windowsPE">
