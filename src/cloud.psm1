@@ -85,8 +85,8 @@ function Get-CloudBucketResource {
           break;
         }
         'azure|azure-blob-storage|az' {
-          # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstoragefilecontent?view=azps-1.8.0
-          Get-AzStorageFileContent -ShareName $bucket -Path $key -Destination $destination;
+          # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstorageblobcontent?view=azps-1.8.0
+          Get-AzStorageBlobContent -Container $bucket -Blob $key -Destination $destination;
           break;
         }
         'google|google-cloud-storage|gcloud|gcp|gcs' {
