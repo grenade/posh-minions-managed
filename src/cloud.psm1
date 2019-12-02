@@ -229,7 +229,18 @@ function New-CloudInstanceFromImageExport {
             break;
           }
         }
-        New-AzResourceGroup -Name TestResourceGroup -Location centralus
+        $tags['resourceId'] = $targetResourceId;
+
+        # resource group
+        $azResourceGroup = (Get-AzResourceGroup `
+          -Name $targetResourceGroupName `
+          -Location $targetResourceRegion `
+          -ErrorAction SilentlyContinue);
+        if (-not ($azResourceGroup)) {
+          $azResourceGroup = (New-AzResourceGroup `
+            -Name $targetResourceGroupName `
+            -Location $targetResourceRegion);
+        }
 
         # boot/os disk
         $azDiskConfig = (New-AzDiskConfig `
@@ -240,7 +251,7 @@ function New-CloudInstanceFromImageExport {
           -CreateOption 'Upload');
         $azDisk = New-AzDisk `
           -ResourceGroupName $targetResourceGroupName `
-          -DiskName $imageName `
+          -DiskName ('disk-{0}' -f $targetResourceId) `
           -Disk $azDiskConfig;
         $azDiskAccess = Grant-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
@@ -320,23 +331,91 @@ function New-CloudInstanceFromImageExport {
         $azVM = (New-AzVMConfig `
           -VMName $targetInstanceName `
           -VMSize $azMachineVariant);
-        $azVM = Add-AzVMNetworkInterface `
+        $azVM = (Add-AzVMNetworkInterface `
           -VM $azVM `
-          -Id $azNetworkInterface.Id;
-        $azVM = Set-AzVMOSDisk `
+          -Id $azNetworkInterface.Id);
+        $azVM = (Set-AzVMOSDisk `
           -VM $azVM `
           -ManagedDiskId $azDisk.Id `
           -StorageAccountType $azStorageAccountType `
           -DiskSizeInGB $targetInstanceDiskSizeGb `
           -CreateOption 'Attach' `
-          -Windows:$true;
-        New-AzVM `
+          -Windows:$true);
+        $azVM = (New-AzVM `
           -ResourceGroupName $targetResourceGroupName `
           -Location $targetResourceRegion `
           -Tag $targetInstanceTags `
-          -VM $azVM;
+          -VM $azVM);
         # todo: return something. maybe a hashtable describing the created instance?
         break;
+      }
+      'google|google-cloud-compute|google-compute-engine|gcloud|gcp|gce' {
+        throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
+        break;
+      }
+      default {
+        throw [System.ArgumentException]('unsupported platform: {0}. use: amazon-s3|azure-blob-storage|google-cloud-storage' -f $platform);
+        break;
+      }
+    }
+  }
+  end {
+    Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+}
+
+function New-CloudImageFromInstance {
+  <#
+  .SYNOPSIS
+    Instantiates a new cloud instance from an exported image
+  #>
+  param (
+    [ValidateSet('amazon', 'aws', 'ec2', 'azure', 'az', 'google', 'google-cloud-compute', 'google-compute-engine', 'gcloud', 'gcp', 'gce')]
+    [string] $platform,
+
+    [Alias('rg', 'resourceGroup')]
+    [string] $resourceGroupName,
+
+    [Alias('region', 'location', 'targetRegion', 'targetLocation')]
+    [string] $region,
+
+    [Alias('hostname', 'instance', 'instanceName', 'targetInstance')]
+    [string] $instanceName,
+
+    [string] $imageName,
+  )
+  begin {
+    Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+  process {
+    switch -regex ($platform) {
+      'amazon|aws|s3' {
+        throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
+        break;
+      }
+      'azure|az' {
+        Stop-AzVM `
+          -ResourceGroupName $resourceGroupName `
+          -Name $instanceName `
+          -Force `
+          -ErrorAction SilentlyContinue
+        Set-AzVm `
+          -ResourceGroupName $resourceGroupName `
+          -Name $instanceName `
+          -Generalized
+        $azVM = (Get-AzVM `
+          -ResourceGroupName $resourceGroupName `
+          -Name $instanceName);
+        $azImageConfig = (New-AzImageConfig `
+          -Location $region `
+          -SourceVirtualMachineId $azVM.Id);
+        $azImage = (New-AzImage `
+          -Image $azImageConfig `
+          -ImageName $imageName `
+          -ResourceGroupName $resourceGroupName);
+        $azImage;
+        break;
+
       }
       'google|google-cloud-compute|google-compute-engine|gcloud|gcp|gce' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);

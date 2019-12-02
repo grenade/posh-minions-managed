@@ -64,6 +64,11 @@
       GUID='f554cfcd-9cbb-4021-b158-fe20f0497f82'
     },
     @{
+      ModuleName='Az.Resources'; # required by src/cloud.psm1 New-CloudInstanceFromImageExport
+      ModuleVersion='1.8.0';
+      GUID='48bb344d-4c24-441e-8ea0-589947784700'
+    },
+    @{
       ModuleName='Az.Storage'; # required by src/cloud.psm1 Get-CloudBucketResource
       ModuleVersion='1.9.0';
       GUID='dfa9e4ea-1407-446d-9111-79122977ab20'
