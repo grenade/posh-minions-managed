@@ -245,7 +245,7 @@ function New-CloudInstanceFromImageExport {
           }
         }
         Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $azMachineVariant) -severity 'trace';
-        switch ($targetDiskVariant) {
+        switch ($targetInstanceDiskVariant) {
           'hdd' {
             $azStorageAccountType = 'Standard_LRS';
             break;
