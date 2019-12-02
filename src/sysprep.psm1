@@ -26,7 +26,7 @@ function New-UnattendFile {
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
     [Parameter(Mandatory = $true)]
-    [string] $administratorPassword,
+    [string] $administratorPassword = (New-Password),
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
