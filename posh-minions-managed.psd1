@@ -109,6 +109,8 @@
     # src/cloud.psm1
     'Get-CloudPlatform',
     'Get-CloudBucketResource',
+    'New-CloudInstanceFromImageExport',
+    'New-CloudImageFromInstance',
 
     # src/convert-windowsimage.psm1
     'Convert-WindowsImage',
