@@ -14,7 +14,7 @@ function Get-CloudPlatform {
     try {
       $cloudAgentServices = @(Get-Service -Name @('AmazonSSMAgent', 'Ec2Config', 'GCEAgent', 'WindowsAzureGuestAgent', 'WindowsAzureNetAgentSvc') -ErrorAction SilentlyContinue | % { $_.Name });
       if ($cloudAgentServices.Contains('AmazonSSMAgent') -or $cloudAgentServices.Contains('Ec2Config')) {
-        $cloudPlatform = 'ec2';
+        $cloudPlatform = 'amazon';
       } elseif ($cloudAgentServices.Contains('WindowsAzureGuestAgent') -or $cloudAgentServices.Contains('WindowsAzureNetAgentSvc')) {
         $cloudPlatform = 'azure';
       } elseif ($cloudAgentServices.Contains('GCEAgent')) {
@@ -40,7 +40,7 @@ function Get-CloudBucketResource {
   #>
   param (
     [Parameter(Mandatory = $true)]
-    [ValidateSet('amazon', 'aws', 's3', 'azure', 'azure-blob-storage', 'az', 'google', 'google-cloud-storage', 'gcloud', 'gcp', 'gcs')]
+    [ValidateSet('amazon', 'azure', 'google')]
     [string] $platform,
 
     [Parameter(Mandatory = $true)]
@@ -76,7 +76,7 @@ function Get-CloudBucketResource {
         throw [System.ArgumentException]('destination file exists: {0}. use `-overwrite` switch or specify a destination file path that does not exist.' -f $destination);
       }
       switch -regex ($platform) {
-        'amazon|aws|s3' {
+        'amazon' {
           if (-not (Get-CloudCredentialAvailability -platform $platform)) {
             throw ('no credentials detected for platform: {0}' -f $platform);
           }
@@ -84,12 +84,12 @@ function Get-CloudBucketResource {
           Copy-S3Object -BucketName $bucket -Key $key -LocalFile $destination;
           break;
         }
-        'azure|azure-blob-storage|az' {
+        'azure' {
           # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstorageblobcontent?view=azps-1.8.0
           Get-AzStorageBlobContent -Container $bucket -Blob $key -Destination $destination;
           break;
         }
-        'google|google-cloud-storage|gcloud|gcp|gcs' {
+        'google' {
           Read-GcsObject -Bucket $bucket -ObjectName $key -OutFile $destination;
           break;
         }
@@ -121,23 +121,23 @@ function Get-CloudCredentialAvailability {
     Downloads a file resource from a cloud bucket
   #>
   param (
-    [ValidateSet('amazon', 'aws', 's3', 'azure', 'azure-blob-storage', 'az', 'google', 'google-cloud-storage', 'gcloud', 'gcp', 'gcs')]
+    [ValidateSet('amazon', 'azure', 'google')]
     [string] $platform
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
   }
   process {
-    switch -regex ($platform) {
-      'amazon|aws|s3' {
+    switch ($platform) {
+      'amazon' {
         return ((@(Get-AWSCredential -ErrorAction SilentlyContinue).Length -gt 0) -or (@(Get-AWSCredential -ListProfileDetail -ErrorAction SilentlyContinue).Length -gt 0));
         break;
       }
-      'azure|azure-blob-storage|az' {
+      'azure' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
         break;
       }
-      'google|google-cloud-storage|gcloud|gcp|gcs' {
+      'google' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
         break;
       }
@@ -158,56 +158,81 @@ function New-CloudInstanceFromImageExport {
     Instantiates a new cloud instance from an exported image
   #>
   param (
-    [ValidateSet('amazon', 'aws', 'ec2', 'azure', 'az', 'google', 'google-cloud-compute', 'google-compute-engine', 'gcloud', 'gcp', 'gce')]
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('amazon', 'azure', 'google')]
     [string] $platform,
 
-    [Alias('path', 'imagePath')]
+    [Parameter(Mandatory = $true)]
     [string] $localImagePath,
 
-    [Alias('resourceId')]
+    [Parameter(Mandatory = $true)]
     [string] $targetResourceId,
 
-    [Alias('rg', 'resourceGroup')]
+    [Parameter(Mandatory = $true)]
     [string] $targetResourceGroupName,
 
-    [Alias('region', 'location', 'targetRegion', 'targetLocation')]
+    [Parameter(Mandatory = $true)]
     [string] $targetResourceRegion,
 
-    [int] $targetInstanceCpuCount,
-
-    [int] $targetInstanceRamGb,
-
-    [Alias('hostname', 'instance', 'instanceName', 'targetInstance')]
+    [Parameter(Mandatory = $true)]
     [string] $targetInstanceName,
-
-    [Alias('vnet', 'virtualNetwork', 'networkName')]
-    # todo: implement regional/location specific naming
-    [string] $targetVirtualNetworkName,
-
-    [ValidateSet('ssd', 'hdd')]
-    [Alias('disk', 'diskType')]
-    [string] $targetInstanceDiskVariant = 'ssd',
-    [int] $targetInstanceDiskSizeGb,
 
     [hashtable] $targetInstanceTags = @{},
 
-    [string] $targetVirtualNetworkAddressPrefix = '10.0.0.0/16',
-    [string[]] $targetVirtualNetworkDnsServers = @('1.1.1.1', '1.0.0.1'),
-    [string] $targetSubnetAddressPrefix = '10.0.1.0/24'
+    [int] $targetInstanceCpuCount = 2,
 
-    # todo: implement iops selection
-    #[int] $diskIops = 0,
+    [int] $targetInstanceRamGb = 8,
+
+    [ValidateSet('ssd', 'hdd')]
+    [string] $targetInstanceDiskVariant = 'ssd',
+
+    [int] $targetInstanceDiskSizeGb,
+
+    [int] $targetInstanceDiskIops,
+
+    [Parameter(Mandatory = $true)]
+    # todo: implement regional/location specific naming
+    [string] $targetVirtualNetworkName,
+
+    [string[]] $targetVirtualNetworkDnsServers = @('1.1.1.1', '1.0.0.1'),
+    [string] $targetVirtualNetworkAddressPrefix = '10.0.0.0/16',
+    [string] $targetSubnetAddressPrefix = '10.0.1.0/24'
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+
+    Write-Log -message ('{0} :: platform: {1}' -f $($MyInvocation.MyCommand.Name), $platform) -severity 'trace';
+    Write-Log -message ('{0} :: localImagePath: {1}' -f $($MyInvocation.MyCommand.Name), $localImagePath) -severity 'trace';
+
+    Write-Log -message ('{0} :: targetResourceId: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceId) -severity 'trace';
+    Write-Log -message ('{0} :: targetResourceGroupName: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName) -severity 'trace';
+    Write-Log -message ('{0} :: targetResourceRegion: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceRegion) -severity 'trace';
+
+    Write-Log -message ('{0} :: targetInstanceName: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName) -severity 'trace';
+    foreach ($key in $targetInstanceTags.Keys) {
+      Write-Log -message ('{0} :: targetInstanceTags[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $key, $targetInstanceTags[$key]) -severity 'trace';
+    }
+    Write-Log -message ('{0} :: targetInstanceCpuCount: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceCpuCount) -severity 'trace';
+    Write-Log -message ('{0} :: targetInstanceRamGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceRamGb) -severity 'trace';
+
+    Write-Log -message ('{0} :: targetInstanceDiskVariant: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskVariant) -severity 'trace';
+    Write-Log -message ('{0} :: targetInstanceDiskSizeGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskSizeGb) -severity 'trace';
+    Write-Log -message ('{0} :: targetInstanceDiskIops: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskIops) -severity 'trace';
+
+    Write-Log -message ('{0} :: targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
+    for ($i = 0; $i -lt $targetVirtualNetworkDnsServers.Length; $i++) {
+      Write-Log -message ('{0} :: targetVirtualNetworkDnsServers[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $i, $targetVirtualNetworkDnsServers[$i]) -severity 'trace';
+    }
+    Write-Log -message ('{0} :: targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
+    Write-Log -message ('{0} :: targetSubnetAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
   }
   process {
     switch -regex ($platform) {
-      'amazon|aws|s3' {
+      'amazon' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
         break;
       }
-      'azure|az' {
+      'azure' {
         switch ($targetInstanceCpuCount) {
           default {
             switch ($targetInstanceRamGb) {
@@ -249,10 +274,7 @@ function New-CloudInstanceFromImageExport {
           -UploadSizeInBytes ((Get-Item -Path $localImagePath).Length) `
           -Location $targetResourceRegion `
           -CreateOption 'Upload');
-        $azDisk = (New-AzDisk `
-          -ResourceGroupName $targetResourceGroupName `
-          -DiskName ('disk-{0}' -f $targetResourceId) `
-          -Disk $azDiskConfig);
+        $azDisk = (New-AzDisk -ResourceGroupName $targetResourceGroupName -DiskName ('disk-{0}' -f $targetResourceId) -Disk $azDiskConfig);
         $azDiskAccess = (Grant-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName $azDisk.Name `
@@ -350,7 +372,7 @@ function New-CloudInstanceFromImageExport {
         # todo: return something. maybe a hashtable describing the created instance?
         break;
       }
-      'google|google-cloud-compute|google-compute-engine|gcloud|gcp|gce' {
+      'google' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
         break;
       }
@@ -371,7 +393,7 @@ function New-CloudImageFromInstance {
     Instantiates a new cloud instance from an exported image
   #>
   param (
-    [ValidateSet('amazon', 'aws', 'ec2', 'azure', 'az', 'google', 'google-cloud-compute', 'google-compute-engine', 'gcloud', 'gcp', 'gce')]
+    [ValidateSet('amazon', 'azure', 'google')]
     [string] $platform,
 
     [Alias('rg', 'resourceGroup')]
@@ -390,11 +412,11 @@ function New-CloudImageFromInstance {
   }
   process {
     switch -regex ($platform) {
-      'amazon|aws|s3' {
+      'amazon' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
         break;
       }
-      'azure|az' {
+      'azure' {
         (Stop-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
@@ -418,7 +440,7 @@ function New-CloudImageFromInstance {
         break;
 
       }
-      'google|google-cloud-compute|google-compute-engine|gcloud|gcp|gce' {
+      'google' {
         throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
         break;
       }
