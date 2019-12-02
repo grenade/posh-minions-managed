@@ -249,19 +249,19 @@ function New-CloudInstanceFromImageExport {
           -UploadSizeInBytes ((Get-Item -Path $localImagePath).Length) `
           -Location $targetResourceRegion `
           -CreateOption 'Upload');
-        $azDisk = New-AzDisk `
+        $azDisk = (New-AzDisk `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName ('disk-{0}' -f $targetResourceId) `
-          -Disk $azDiskConfig;
-        $azDiskAccess = Grant-AzDiskAccess `
+          -Disk $azDiskConfig);
+        $azDiskAccess = (Grant-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName $azDisk.Name `
           -DurationInSecond 86400 `
-          -Access 'Write';
+          -Access 'Write');
         & AzCopy.exe @('copy', $localImagePath, ($azDiskAccess.AccessSAS), '--blob-type', 'PageBlob');
-        Revoke-AzDiskAccess `
+        (Revoke-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
-          -DiskName $azDisk.Name;
+          -DiskName $azDisk.Name);
 
         # networking
         $azVirtualNetwork = (Get-AzVirtualNetwork `
@@ -307,25 +307,25 @@ function New-CloudInstanceFromImageExport {
             -SourcePortRange '*' `
             -DestinationAddressPrefix '*' `
             -DestinationPortRange 22);
-          $azNetworkSecurityGroup = New-AzNetworkSecurityGroup `
+          $azNetworkSecurityGroup = (New-AzNetworkSecurityGroup `
             -Name $target.network.flow[0] `
             -ResourceGroupName $targetResourceGroupName `
             -Location $targetResourceRegion `
-            -SecurityRules @($rdpAzNetworkSecurityRuleConfig, $sshAzNetworkSecurityRuleConfig);
+            -SecurityRules @($rdpAzNetworkSecurityRuleConfig, $sshAzNetworkSecurityRuleConfig));
         }
-        $azPublicIpAddress = New-AzPublicIpAddress `
+        $azPublicIpAddress = (New-AzPublicIpAddress `
           -Name ('ip-{0}' -f $targetResourceId) `
           -ResourceGroupName $targetResourceGroupName `
           -Location $targetResourceRegion `
-          -AllocationMethod 'Dynamic';
+          -AllocationMethod 'Dynamic');
 
-        $azNetworkInterface = New-AzNetworkInterface `
+        $azNetworkInterface = (New-AzNetworkInterface `
           -Name ('ni-{0}' -f $targetResourceId) `
           -ResourceGroupName $targetResourceGroupName `
           -Location $targetResourceRegion `
           -SubnetId $azVirtualNetwork.Subnets[0].Id `
           -PublicIpAddressId $azPublicIpAddress.Id `
-          -NetworkSecurityGroupId $azNetworkSecurityGroup.Id;
+          -NetworkSecurityGroupId $azNetworkSecurityGroup.Id);
 
         # virtual machine
         $azVM = (New-AzVMConfig `
@@ -346,6 +346,7 @@ function New-CloudInstanceFromImageExport {
           -Location $targetResourceRegion `
           -Tag $targetInstanceTags `
           -VM $azVM);
+        $azVM;
         # todo: return something. maybe a hashtable describing the created instance?
         break;
       }
@@ -394,15 +395,15 @@ function New-CloudImageFromInstance {
         break;
       }
       'azure|az' {
-        Stop-AzVM `
+        (Stop-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
           -Force `
-          -ErrorAction SilentlyContinue
-        Set-AzVm `
+          -ErrorAction SilentlyContinue);
+        (Set-AzVm `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
-          -Generalized
+          -Generalized);
         $azVM = (Get-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName);
