@@ -196,7 +196,35 @@ function New-CloudInstanceFromImageExport {
 
     [string[]] $targetVirtualNetworkDnsServers = @('1.1.1.1', '1.0.0.1'),
     [string] $targetVirtualNetworkAddressPrefix = '10.0.0.0/16',
-    [string] $targetSubnetAddressPrefix = '10.0.1.0/24'
+    [string] $targetSubnetAddressPrefix = '10.0.1.0/24',
+
+    [string] $targetFirewallConfigurationName = ('{0}-{1}' -f $(if ($platform -eq 'azure') { 'sg' } else { 'fwc' }), $targetResourceGroupName),
+    [hashtable[]] $targetFirewallRules = @(
+      @{
+        'Name' = 'rdp-only';
+        'Description' = 'allow: inbound tcp connections, for: rdp, from: anywhere, to: any host, on port: 3389';
+        'Access' = 'Allow';
+        'Protocol' = 'Tcp';
+        'Direction' = 'Inbound';
+        'Priority' = 110;
+        'SourceAddressPrefix' = 'Internet';
+        'SourcePortRange' = '*';
+        'DestinationAddressPrefix' = '*';
+        'DestinationPortRange' = '3389'
+      },
+      @{
+        'Name' = 'ssh-only';
+        'Description' = 'allow: inbound tcp connections, for: ssh, from: anywhere, to: any host, on port: 22';
+        'Access' = 'Allow';
+        'Protocol' = 'Tcp';
+        'Direction' = 'Inbound';
+        'Priority' = 120;
+        'SourceAddressPrefix' = 'Internet';
+        'SourcePortRange' = '*';
+        'DestinationAddressPrefix' = '*';
+        'DestinationPortRange' = '22'
+      }
+    )
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
@@ -210,7 +238,7 @@ function New-CloudInstanceFromImageExport {
 
     Write-Log -message ('{0} :: param/targetInstanceName: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName) -severity 'trace';
     foreach ($key in $targetInstanceTags.Keys) {
-      Write-Log -message ('{0} :: param/targetInstanceTags[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $key, $targetInstanceTags[$key]) -severity 'trace';
+      Write-Log -message ('{0} :: param/targetInstanceTags.{1}: {2}' -f $($MyInvocation.MyCommand.Name), $key, $targetInstanceTags[$key]) -severity 'trace';
     }
     Write-Log -message ('{0} :: param/targetInstanceCpuCount: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceCpuCount) -severity 'trace';
     Write-Log -message ('{0} :: param/targetInstanceRamGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceRamGb) -severity 'trace';
@@ -225,6 +253,13 @@ function New-CloudInstanceFromImageExport {
     }
     Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
     Write-Log -message ('{0} :: param/targetSubnetAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
+
+    Write-Log -message ('{0} :: param/targetFirewallConfigurationName: {1}' -f $($MyInvocation.MyCommand.Name), $targetFirewallConfigurationName) -severity 'trace';
+    for ($i = 0; $i -lt $targetFirewallRules.Length; $i++) {
+      foreach ($key in $targetFirewallRules[$i].Keys) {
+        Write-Log -message ('{0} :: param/targetFirewallRules[{1}].{2}: {3}' -f $($MyInvocation.MyCommand.Name), $i, $key, $targetFirewallRules[$i][$key]) -severity 'trace';
+      }
+    }
   }
   process {
     switch -regex ($platform) {
@@ -298,47 +333,36 @@ function New-CloudInstanceFromImageExport {
         if (-not ($azVirtualNetwork)) {
           $azVirtualNetworkSubnetConfig = (New-AzVirtualNetworkSubnetConfig `
             -Name ('sn-{0}' -f $targetResourceId) `
-            -AddressPrefix $subnetAddressPrefix);
+            -AddressPrefix $targetSubnetAddressPrefix);
           $azVirtualNetwork = (New-AzVirtualNetwork `
             -Name $targetVirtualNetworkName `
             -ResourceGroupName $targetResourceGroupName `
             -Location $targetResourceRegion `
-            -AddressPrefix $virtualNetworkAddressPrefix `
+            -AddressPrefix $targetVirtualNetworkAddressPrefix `
             -Subnet $azVirtualNetworkSubnetConfig `
             -DnsServer $targetVirtualNetworkDnsServers);
         }
         $azNetworkSecurityGroup = (Get-AzNetworkSecurityGroup `
-          -Name $target.network.flow[0] `
+          -Name $targetFirewallConfigurationName `
           -ResourceGroupName $targetResourceGroupName `
           -ErrorAction SilentlyContinue);
         if (-not ($azNetworkSecurityGroup)) {
-          $rdpAzNetworkSecurityRuleConfig = (New-AzNetworkSecurityRuleConfig `
-            -Name 'rdp-only' `
-            -Description 'allow: inbound tcp connections, for: rdp, from: anywhere, to: any host, on port: 3389' `
-            -Access 'Allow' `
-            -Protocol 'Tcp' `
-            -Direction 'Inbound' `
-            -Priority 110 `
-            -SourceAddressPrefix 'Internet' `
-            -SourcePortRange '*' `
-            -DestinationAddressPrefix '*' `
-            -DestinationPortRange 3389);
-          $sshAzNetworkSecurityRuleConfig = (New-AzNetworkSecurityRuleConfig `
-            -Name 'ssh-only' `
-            -Description 'allow: inbound tcp connections, for: ssh, from: anywhere, to: any host, on port: 22' `
-            -Access 'Allow' `
-            -Protocol 'Tcp' `
-            -Direction 'Inbound' `
-            -Priority 120 `
-            -SourceAddressPrefix 'Internet' `
-            -SourcePortRange '*' `
-            -DestinationAddressPrefix '*' `
-            -DestinationPortRange 22);
+          $azNetworkSecurityRuleConfigs = @($targetFirewallRules | % { (New-AzNetworkSecurityRuleConfig `
+            -Name $_.Name `
+            -Description $_.Description `
+            -Access $_.Access `
+            -Protocol $_.Protocol `
+            -Direction $_.Direction `
+            -Priority $_.Priority `
+            -SourceAddressPrefix $_.SourceAddressPrefix `
+            -SourcePortRange $_.SourcePortRange `
+            -DestinationAddressPrefix $_.DestinationAddressPrefix `
+            -DestinationPortRange $_.DestinationPortRange) });
           $azNetworkSecurityGroup = (New-AzNetworkSecurityGroup `
-            -Name $target.network.flow[0] `
+            -Name $targetFirewallConfigurationName `
             -ResourceGroupName $targetResourceGroupName `
             -Location $targetResourceRegion `
-            -SecurityRules @($rdpAzNetworkSecurityRuleConfig, $sshAzNetworkSecurityRuleConfig));
+            -SecurityRules $azNetworkSecurityRuleConfigs);
         }
         $azPublicIpAddress = (New-AzPublicIpAddress `
           -Name ('ip-{0}' -f $targetResourceId) `
