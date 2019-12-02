@@ -201,30 +201,30 @@ function New-CloudInstanceFromImageExport {
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
 
-    Write-Log -message ('{0} :: platform: {1}' -f $($MyInvocation.MyCommand.Name), $platform) -severity 'trace';
-    Write-Log -message ('{0} :: localImagePath: {1}' -f $($MyInvocation.MyCommand.Name), $localImagePath) -severity 'trace';
+    Write-Log -message ('{0} :: param/platform: {1}' -f $($MyInvocation.MyCommand.Name), $platform) -severity 'trace';
+    Write-Log -message ('{0} :: param/localImagePath: {1}' -f $($MyInvocation.MyCommand.Name), $localImagePath) -severity 'trace';
 
-    Write-Log -message ('{0} :: targetResourceId: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceId) -severity 'trace';
-    Write-Log -message ('{0} :: targetResourceGroupName: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName) -severity 'trace';
-    Write-Log -message ('{0} :: targetResourceRegion: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceRegion) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetResourceId: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceId) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetResourceGroupName: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetResourceRegion: {1}' -f $($MyInvocation.MyCommand.Name), $targetResourceRegion) -severity 'trace';
 
-    Write-Log -message ('{0} :: targetInstanceName: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetInstanceName: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName) -severity 'trace';
     foreach ($key in $targetInstanceTags.Keys) {
-      Write-Log -message ('{0} :: targetInstanceTags[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $key, $targetInstanceTags[$key]) -severity 'trace';
+      Write-Log -message ('{0} :: param/targetInstanceTags[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $key, $targetInstanceTags[$key]) -severity 'trace';
     }
-    Write-Log -message ('{0} :: targetInstanceCpuCount: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceCpuCount) -severity 'trace';
-    Write-Log -message ('{0} :: targetInstanceRamGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceRamGb) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetInstanceCpuCount: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceCpuCount) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetInstanceRamGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceRamGb) -severity 'trace';
 
-    Write-Log -message ('{0} :: targetInstanceDiskVariant: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskVariant) -severity 'trace';
-    Write-Log -message ('{0} :: targetInstanceDiskSizeGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskSizeGb) -severity 'trace';
-    Write-Log -message ('{0} :: targetInstanceDiskIops: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskIops) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetInstanceDiskVariant: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskVariant) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetInstanceDiskSizeGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskSizeGb) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetInstanceDiskIops: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskIops) -severity 'trace';
 
-    Write-Log -message ('{0} :: targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
     for ($i = 0; $i -lt $targetVirtualNetworkDnsServers.Length; $i++) {
-      Write-Log -message ('{0} :: targetVirtualNetworkDnsServers[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $i, $targetVirtualNetworkDnsServers[$i]) -severity 'trace';
+      Write-Log -message ('{0} :: param/targetVirtualNetworkDnsServers[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $i, $targetVirtualNetworkDnsServers[$i]) -severity 'trace';
     }
-    Write-Log -message ('{0} :: targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
-    Write-Log -message ('{0} :: targetSubnetAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetSubnetAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
   }
   process {
     switch -regex ($platform) {
@@ -244,6 +244,7 @@ function New-CloudInstanceFromImageExport {
             break;
           }
         }
+        Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
         switch ($targetDiskVariant) {
           'hdd' {
             $azStorageAccountType = 'Standard_LRS';
@@ -254,6 +255,7 @@ function New-CloudInstanceFromImageExport {
             break;
           }
         }
+        Write-Log -message ('{0} :: var/azStorageAccountType: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
         $tags['resourceId'] = $targetResourceId;
 
         # resource group
