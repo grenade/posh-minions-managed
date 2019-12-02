@@ -276,7 +276,10 @@ function New-CloudInstanceFromImageExport {
           -UploadSizeInBytes ((Get-Item -Path $localImagePath).Length) `
           -Location $targetResourceRegion `
           -CreateOption 'Upload');
-        $azDisk = (New-AzDisk -ResourceGroupName $targetResourceGroupName -DiskName ('disk-{0}' -f $targetResourceId) -Disk $azDiskConfig);
+        $azDisk = (New-AzDisk `
+          -ResourceGroupName $targetResourceGroupName `
+          -DiskName ('disk-{0}' -f $targetResourceId) `
+          -Disk $azDiskConfig);
         $azDiskAccess = (Grant-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName $azDisk.Name `
