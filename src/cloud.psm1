@@ -182,7 +182,7 @@ function New-CloudInstanceFromImageExport {
 
     [Alias('vnet', 'virtualNetwork', 'networkName')]
     # todo: implement regional/location specific naming
-    [string] $targetVirtualNetworkName
+    [string] $targetVirtualNetworkName,
 
     [ValidateSet('ssd', 'hdd')]
     [Alias('disk', 'diskType')]
@@ -382,7 +382,7 @@ function New-CloudImageFromInstance {
     [Alias('hostname', 'instance', 'instanceName', 'targetInstance')]
     [string] $instanceName,
 
-    [string] $imageName,
+    [string] $imageName
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
