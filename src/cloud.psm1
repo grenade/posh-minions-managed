@@ -244,7 +244,7 @@ function New-CloudInstanceFromImageExport {
             break;
           }
         }
-        Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
+        Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $azMachineVariant) -severity 'trace';
         switch ($targetDiskVariant) {
           'hdd' {
             $azStorageAccountType = 'Standard_LRS';
@@ -255,7 +255,7 @@ function New-CloudInstanceFromImageExport {
             break;
           }
         }
-        Write-Log -message ('{0} :: var/azStorageAccountType: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
+        Write-Log -message ('{0} :: var/azStorageAccountType: {1}' -f $($MyInvocation.MyCommand.Name), $azStorageAccountType) -severity 'trace';
         $tags['resourceId'] = $targetResourceId;
 
         # resource group
