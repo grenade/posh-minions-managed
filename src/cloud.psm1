@@ -151,3 +151,204 @@ function Get-CloudCredentialAvailability {
     Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
   }
 }
+
+function New-CloudInstanceFromImageExport {
+  <#
+  .SYNOPSIS
+    Instantiates a new cloud instance from an exported image
+  #>
+  param (
+    [ValidateSet('amazon', 'aws', 'ec2', 'azure', 'az', 'google', 'google-cloud-compute', 'google-compute-engine', 'gcloud', 'gcp', 'gce')]
+    [string] $platform,
+
+    [Alias('path', 'imagePath')]
+    [string] $localImagePath,
+
+    [Alias('resourceId')]
+    [string] $targetResourceId,
+
+    [Alias('rg', 'resourceGroup')]
+    [string] $targetResourceGroupName,
+
+    [Alias('region', 'location', 'targetRegion', 'targetLocation')]
+    [string] $targetResourceRegion,
+
+    [int] $targetInstanceCpuCount,
+
+    [int] $targetInstanceRamGb,
+
+    [Alias('hostname', 'instance', 'instanceName', 'targetInstance')]
+    [string] $targetInstanceName,
+
+    [Alias('vnet', 'virtualNetwork', 'networkName')]
+    # todo: implement regional/location specific naming
+    [string] $targetVirtualNetworkName
+
+    [ValidateSet('ssd', 'hdd')]
+    [Alias('disk', 'diskType')]
+    [string] $targetInstanceDiskVariant = 'ssd',
+    [int] $targetInstanceDiskSizeGb,
+
+    [hashtable] $targetInstanceTags = @{},
+
+    [string] $targetVirtualNetworkAddressPrefix = '10.0.0.0/16',
+    [string[]] $targetVirtualNetworkDnsServers = @('1.1.1.1', '1.0.0.1'),
+    [string] $targetSubnetAddressPrefix = '10.0.1.0/24'
+
+    # todo: implement iops selection
+    #[int] $diskIops = 0,
+  )
+  begin {
+    Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+  process {
+    switch -regex ($platform) {
+      'amazon|aws|s3' {
+        throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
+        break;
+      }
+      'azure|az' {
+        switch ($targetInstanceCpuCount) {
+          default {
+            switch ($targetInstanceRamGb) {
+              default {
+                $azMachineVariant = ('Standard_A{0}' -f $targetInstanceCpuCount);
+                break;
+              }
+            }
+            break;
+          }
+        }
+        switch ($targetDiskVariant) {
+          'hdd' {
+            $azStorageAccountType = 'Standard_LRS';
+            break;
+          }
+          'ssd' {
+            $azStorageAccountType = 'StandardSSD_LRS';
+            break;
+          }
+        }
+        New-AzResourceGroup -Name TestResourceGroup -Location centralus
+
+        # boot/os disk
+        $azDiskConfig = (New-AzDiskConfig `
+          -SkuName $azStorageAccountType `
+          -OsType 'Windows' `
+          -UploadSizeInBytes ((Get-Item -Path $localImagePath).Length) `
+          -Location $targetResourceRegion `
+          -CreateOption 'Upload');
+        $azDisk = New-AzDisk `
+          -ResourceGroupName $targetResourceGroupName `
+          -DiskName $imageName `
+          -Disk $azDiskConfig;
+        $azDiskAccess = Grant-AzDiskAccess `
+          -ResourceGroupName $targetResourceGroupName `
+          -DiskName $azDisk.Name `
+          -DurationInSecond 86400 `
+          -Access 'Write';
+        & AzCopy.exe @('copy', $localImagePath, ($azDiskAccess.AccessSAS), '--blob-type', 'PageBlob');
+        Revoke-AzDiskAccess `
+          -ResourceGroupName $targetResourceGroupName `
+          -DiskName $azDisk.Name;
+
+        # networking
+        $azVirtualNetwork = (Get-AzVirtualNetwork `
+          -Name $targetVirtualNetworkName `
+          -ResourceGroupName $targetResourceGroupName `
+          -ErrorAction SilentlyContinue);
+        if (-not ($azVirtualNetwork)) {
+          $azVirtualNetworkSubnetConfig = (New-AzVirtualNetworkSubnetConfig `
+            -Name ('sn-{0}' -f $targetResourceId) `
+            -AddressPrefix $subnetAddressPrefix);
+          $azVirtualNetwork = (New-AzVirtualNetwork `
+            -Name $targetVirtualNetworkName `
+            -ResourceGroupName $targetResourceGroupName `
+            -Location $targetResourceRegion `
+            -AddressPrefix $virtualNetworkAddressPrefix `
+            -Subnet $azVirtualNetworkSubnetConfig `
+            -DnsServer $targetVirtualNetworkDnsServers);
+        }
+        $azNetworkSecurityGroup = (Get-AzNetworkSecurityGroup `
+          -Name $target.network.flow[0] `
+          -ResourceGroupName $targetResourceGroupName `
+          -ErrorAction SilentlyContinue);
+        if (-not ($azNetworkSecurityGroup)) {
+          $rdpAzNetworkSecurityRuleConfig = (New-AzNetworkSecurityRuleConfig `
+            -Name 'rdp-only' `
+            -Description 'allow: inbound tcp connections, for: rdp, from: anywhere, to: any host, on port: 3389' `
+            -Access 'Allow' `
+            -Protocol 'Tcp' `
+            -Direction 'Inbound' `
+            -Priority 110 `
+            -SourceAddressPrefix 'Internet' `
+            -SourcePortRange '*' `
+            -DestinationAddressPrefix '*' `
+            -DestinationPortRange 3389);
+          $sshAzNetworkSecurityRuleConfig = (New-AzNetworkSecurityRuleConfig `
+            -Name 'ssh-only' `
+            -Description 'allow: inbound tcp connections, for: ssh, from: anywhere, to: any host, on port: 22' `
+            -Access 'Allow' `
+            -Protocol 'Tcp' `
+            -Direction 'Inbound' `
+            -Priority 120 `
+            -SourceAddressPrefix 'Internet' `
+            -SourcePortRange '*' `
+            -DestinationAddressPrefix '*' `
+            -DestinationPortRange 22);
+          $azNetworkSecurityGroup = New-AzNetworkSecurityGroup `
+            -Name $target.network.flow[0] `
+            -ResourceGroupName $targetResourceGroupName `
+            -Location $targetResourceRegion `
+            -SecurityRules @($rdpAzNetworkSecurityRuleConfig, $sshAzNetworkSecurityRuleConfig);
+        }
+        $azPublicIpAddress = New-AzPublicIpAddress `
+          -Name ('ip-{0}' -f $targetResourceId) `
+          -ResourceGroupName $targetResourceGroupName `
+          -Location $targetResourceRegion `
+          -AllocationMethod 'Dynamic';
+
+        $azNetworkInterface = New-AzNetworkInterface `
+          -Name ('ni-{0}' -f $targetResourceId) `
+          -ResourceGroupName $targetResourceGroupName `
+          -Location $targetResourceRegion `
+          -SubnetId $azVirtualNetwork.Subnets[0].Id `
+          -PublicIpAddressId $azPublicIpAddress.Id `
+          -NetworkSecurityGroupId $azNetworkSecurityGroup.Id;
+
+        # virtual machine
+        $azVM = (New-AzVMConfig `
+          -VMName $targetInstanceName `
+          -VMSize $azMachineVariant);
+        $azVM = Add-AzVMNetworkInterface `
+          -VM $azVM `
+          -Id $azNetworkInterface.Id;
+        $azVM = Set-AzVMOSDisk `
+          -VM $azVM `
+          -ManagedDiskId $azDisk.Id `
+          -StorageAccountType $azStorageAccountType `
+          -DiskSizeInGB $targetInstanceDiskSizeGb `
+          -CreateOption 'Attach' `
+          -Windows:$true;
+        New-AzVM `
+          -ResourceGroupName $targetResourceGroupName `
+          -Location $targetResourceRegion `
+          -Tag $targetInstanceTags `
+          -VM $azVM;
+        # todo: return something. maybe a hashtable describing the created instance?
+        break;
+      }
+      'google|google-cloud-compute|google-compute-engine|gcloud|gcp|gce' {
+        throw [System.NotImplementedException]('this method is awaiting implementation for platform: {0}' -f $platform);
+        break;
+      }
+      default {
+        throw [System.ArgumentException]('unsupported platform: {0}. use: amazon-s3|azure-blob-storage|google-cloud-storage' -f $platform);
+        break;
+      }
+    }
+  }
+  end {
+    Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+}
