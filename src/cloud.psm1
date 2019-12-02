@@ -191,14 +191,17 @@ function New-CloudInstanceFromImageExport {
     [int] $targetInstanceDiskIops,
 
     [Parameter(Mandatory = $true)]
-    # todo: implement regional/location specific naming
     [string] $targetVirtualNetworkName,
-
+    [Parameter(Mandatory = $true)]
+    [string] $targetVirtualNetworkAddressPrefix,
     [string[]] $targetVirtualNetworkDnsServers = @('1.1.1.1', '1.0.0.1'),
-    [string] $targetVirtualNetworkAddressPrefix = '10.0.0.0/16',
-    [string] $targetSubnetAddressPrefix = '10.0.1.0/24',
 
-    [string] $targetFirewallConfigurationName = ('{0}-{1}' -f $(if ($platform -eq 'azure') { 'sg' } else { 'fwc' }), $targetResourceGroupName),
+    [Parameter(Mandatory = $true)]
+    [string] $targetSubnetName,
+    [Parameter(Mandatory = $true)]
+    [string] $targetSubnetAddressPrefix,
+
+    [string] $targetFirewallConfigurationName = ('{0}-{1}' -f $(if ($platform -eq 'azure') { 'nsg' } else { 'fwc' }), $targetResourceGroupName),
     [hashtable[]] $targetFirewallRules = @(
       @{
         'Name' = 'rdp-only';
@@ -248,10 +251,11 @@ function New-CloudInstanceFromImageExport {
     Write-Log -message ('{0} :: param/targetInstanceDiskIops: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskIops) -severity 'trace';
 
     Write-Log -message ('{0} :: param/targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
     for ($i = 0; $i -lt $targetVirtualNetworkDnsServers.Length; $i++) {
       Write-Log -message ('{0} :: param/targetVirtualNetworkDnsServers[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $i, $targetVirtualNetworkDnsServers[$i]) -severity 'trace';
     }
-    Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
+    Write-Log -message ('{0} :: param/targetSubnetName: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetName) -severity 'trace';
     Write-Log -message ('{0} :: param/targetSubnetAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
 
     Write-Log -message ('{0} :: param/targetFirewallConfigurationName: {1}' -f $($MyInvocation.MyCommand.Name), $targetFirewallConfigurationName) -severity 'trace';
@@ -332,7 +336,7 @@ function New-CloudInstanceFromImageExport {
           -ErrorAction SilentlyContinue);
         if (-not ($azVirtualNetwork)) {
           $azVirtualNetworkSubnetConfig = (New-AzVirtualNetworkSubnetConfig `
-            -Name ('sn-{0}' -f $targetResourceId) `
+            -Name $targetSubnetName `
             -AddressPrefix $targetSubnetAddressPrefix);
           $azVirtualNetwork = (New-AzVirtualNetwork `
             -Name $targetVirtualNetworkName `
