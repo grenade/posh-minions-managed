@@ -186,18 +186,22 @@ function New-CloudInstanceFromImageExport {
     [ValidateSet('ssd', 'hdd')]
     [string] $targetInstanceDiskVariant = 'ssd',
 
+    [Parameter(Mandatory = $true)]
     [int] $targetInstanceDiskSizeGb,
 
     [int] $targetInstanceDiskIops,
 
     [Parameter(Mandatory = $true)]
     [string] $targetVirtualNetworkName,
+
     [Parameter(Mandatory = $true)]
     [string] $targetVirtualNetworkAddressPrefix,
+
     [string[]] $targetVirtualNetworkDnsServers = @('1.1.1.1', '1.0.0.1'),
 
     [Parameter(Mandatory = $true)]
     [string] $targetSubnetName,
+    
     [Parameter(Mandatory = $true)]
     [string] $targetSubnetAddressPrefix,
 
@@ -426,18 +430,20 @@ function New-CloudImageFromInstance {
     Instantiates a new cloud instance from an exported image
   #>
   param (
+    [Parameter(Mandatory = $true)]
     [ValidateSet('amazon', 'azure', 'google')]
     [string] $platform,
 
-    [Alias('rg', 'resourceGroup')]
+    [Parameter(Mandatory = $true)]
     [string] $resourceGroupName,
 
-    [Alias('region', 'location', 'targetRegion', 'targetLocation')]
+    [Parameter(Mandatory = $true)]
     [string] $region,
 
-    [Alias('hostname', 'instance', 'instanceName', 'targetInstance')]
+    [Parameter(Mandatory = $true)]
     [string] $instanceName,
 
+    [Parameter(Mandatory = $true)]
     [string] $imageName
   )
   begin {
