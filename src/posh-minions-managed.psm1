@@ -104,6 +104,11 @@ function Write-Log {
       }
     } catch [PlatformNotSupportedException] {
       $platformSupported = $false;
+    } catch [System.Security.SecurityException] {
+      try {
+        New-EventLog -LogName $logName -Source $source
+      } catch {
+      }
     }
   }
   process {
