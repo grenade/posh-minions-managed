@@ -2365,7 +2365,12 @@ You can use the fields below to configure the VHD or VHDX that you want to creat
                     Else
                     {
                         Write-Verbose -Message "Closing $VhdFormat..."
-                        $DismountDiskImage = Dismount-DiskImage -ImagePath $VhdPath -PassThru
+                        
+                        if (((Get-Command Dismount-DiskImage).ParameterSets | Select -ExpandProperty Parameters | ? { $_.Name -eq 'PassThru' })) {
+                            $DismountDiskImage = Dismount-DiskImage -ImagePath $VhdPath -PassThru
+                        } else {
+                            $DismountDiskImage = Dismount-DiskImage -ImagePath $VhdPath
+                        }
                     }
 
                     $vhdParentPath = Split-Path -Path $VhdPath -Parent
@@ -2433,7 +2438,11 @@ You can use the fields below to configure the VHD or VHDX that you want to creat
                 }
                 Else
                 {
-                    $DismountDiskImage = Dismount-DiskImage -ImagePath $VhdPath -PassThru
+                    if (((Get-Command Dismount-DiskImage).ParameterSets | Select -ExpandProperty Parameters | ? { $_.Name -eq 'PassThru' })) {
+                        $DismountDiskImage = Dismount-DiskImage -ImagePath $VhdPath -PassThru
+                    } else {
+                        $DismountDiskImage = Dismount-DiskImage -ImagePath $VhdPath
+                    }
                 }
             }
 
@@ -2442,7 +2451,11 @@ You can use the fields below to configure the VHD or VHDX that you want to creat
             {
                 Write-Verbose -Message "Closing ISO..."
 
-                $DismountDiskImage = Dismount-DiskImage -ImagePath $IsoPath -PassThru
+                if (((Get-Command Dismount-DiskImage).ParameterSets | Select -ExpandProperty Parameters | ? { $_.Name -eq 'PassThru' })) {
+                    $DismountDiskImage = Dismount-DiskImage -ImagePath $IsoPath -PassThru
+                } else {
+                    $DismountDiskImage = Dismount-DiskImage -ImagePath $IsoPath
+                }
             }
 
             If (-not $CacheSource)
