@@ -447,7 +447,9 @@ function New-CloudImageFromInstance {
     [string] $instanceName,
 
     [Parameter(Mandatory = $true)]
-    [string] $imageName
+    [string] $imageName,
+
+    [hashtable] $imageTags = @{}
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
@@ -473,6 +475,7 @@ function New-CloudImageFromInstance {
           -Name $instanceName);
         $azImageConfig = (New-AzImageConfig `
           -Location $region `
+          -Tag $imageTags `
           -SourceVirtualMachineId $azVM.Id);
         $azImage = (New-AzImage `
           -Image $azImageConfig `
