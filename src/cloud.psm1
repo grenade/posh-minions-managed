@@ -177,11 +177,13 @@ function New-CloudInstanceFromImageExport {
     [Parameter(Mandatory = $true)]
     [string] $targetInstanceName,
 
-    [hashtable] $targetInstanceTags = @{},
+    [string] $targetInstanceMachineVariantFormat = 'Standard_F{0}s_v2',
 
     [int] $targetInstanceCpuCount = 2,
 
     [int] $targetInstanceRamGb = 8,
+
+    [hashtable] $targetInstanceTags = @{},
 
     [ValidateSet('ssd', 'hdd')]
     [string] $targetInstanceDiskVariant = 'ssd',
@@ -247,6 +249,7 @@ function New-CloudInstanceFromImageExport {
     foreach ($key in $targetInstanceTags.Keys) {
       Write-Log -message ('{0} :: param/targetInstanceTags.{1}: {2}' -f $($MyInvocation.MyCommand.Name), $key, $targetInstanceTags[$key]) -severity 'trace';
     }
+    Write-Log -message ('{0} :: param/targetInstanceMachineVariantFormat: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceMachineVariantFormat) -severity 'trace';
     Write-Log -message ('{0} :: param/targetInstanceCpuCount: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceCpuCount) -severity 'trace';
     Write-Log -message ('{0} :: param/targetInstanceRamGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceRamGb) -severity 'trace';
 
@@ -280,7 +283,7 @@ function New-CloudInstanceFromImageExport {
           default {
             switch ($targetInstanceRamGb) {
               default {
-                $azMachineVariant = ('Standard_A{0}' -f $targetInstanceCpuCount);
+                $azMachineVariant = ($targetInstanceMachineVariantFormat -f $targetInstanceCpuCount);
                 break;
               }
             }
