@@ -449,7 +449,7 @@ function New-CloudImageFromInstance {
     [Parameter(Mandatory = $true)]
     [string] $imageName,
 
-    [hashtable] $imageTags = @{}
+    [hashtable] $imageTags = $null
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
@@ -461,27 +461,40 @@ function New-CloudImageFromInstance {
         break;
       }
       'azure' {
-        (Stop-AzVM `
+        $azVMStatus = (Get-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
-          -Force `
-          -ErrorAction SilentlyContinue);
-        (Set-AzVm `
+          -Status);
+        if (($azVMStatus) -and ($azVMStatus.Statuses | ? { ($_.Code -eq 'PowerState/running') })) {
+          $stopOperation = (Stop-AzVM `
+            -ResourceGroupName $resourceGroupName `
+            -Name $instanceName `
+            -Force `
+            -ErrorAction SilentlyContinue);
+          Write-Log -message ('{0} :: stop operation on instance: {1} in resource group: {2} has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $stopOperation.Status) -severity 'debug';
+        }
+        $generalizeOperation = (Set-AzVm `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
           -Generalized);
+        Write-Log -message ('{0} :: generalize operation on instance: {1} in resource group: {2} has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $generalizeOperation.Status) -severity 'debug';
         $azVM = (Get-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName);
-        $azImageConfig = (New-AzImageConfig `
-          -Location $region `
-          -Tag $imageTags `
-          -SourceVirtualMachineId $azVM.Id);
+        if ($imageTags) {
+          $azImageConfig = (New-AzImageConfig `
+            -Location $region `
+            -Tag $imageTags `
+            -SourceVirtualMachineId $azVM.Id);
+        } else {
+          $azImageConfig = (New-AzImageConfig `
+            -Location $region `
+            -SourceVirtualMachineId $azVM.Id);
+        }
         $azImage = (New-AzImage `
           -Image $azImageConfig `
           -ImageName $imageName `
           -ResourceGroupName $resourceGroupName);
-        $azImage;
         break;
 
       }
