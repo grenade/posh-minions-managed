@@ -115,11 +115,12 @@ function Write-Log {
     if ($platformSupported) {
       try {
         Write-EventLog -LogName $logName -Source $source -EntryType $entryType -EventId $eventId -Message $message
+        Write-Output -InputObject ('[{0} {1}] {2}' -f $severity, (Get-Date).ToUniversalTime(), $message);
       } catch {
         Write-Verbose -Message ('failed to write to event log source: {0}/{1}. the log message was: {2}. the exception message was: {3}' -f $logName, $source, $message, $_.Exception.Message)
       }
     } else {
-      Write-Host -object ('[{0}] {1}' -f $severity, $message) -ForegroundColor @{ 'info' = 'White'; 'error' = 'Red'; 'warn' = 'DarkYellow'; 'debug' = 'DarkGray'; 'trace' = 'DarkGray' }[$severity]
+      Write-Host -object ('[{0} {1}] {2}' -f $severity, (Get-Date).ToUniversalTime(), $message) -ForegroundColor @{ 'info' = 'White'; 'error' = 'Red'; 'warn' = 'DarkYellow'; 'debug' = 'DarkGray'; 'trace' = 'DarkGray' }[$severity]
     }
   }
   end {
