@@ -471,30 +471,46 @@ function New-CloudImageFromInstance {
             -Name $instanceName `
             -Force `
             -ErrorAction SilentlyContinue);
-          Write-Log -message ('{0} :: stop operation on instance: {1} in resource group: {2} has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $stopOperation.Status) -severity 'debug';
+          Write-Log -message ('{0} :: stop operation on instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $stopOperation.Status) -severity 'debug';
         }
         $generalizeOperation = (Set-AzVm `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
           -Generalized);
-        Write-Log -message ('{0} :: generalize operation on instance: {1} in resource group: {2} has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $generalizeOperation.Status) -severity 'debug';
+        Write-Log -message ('{0} :: generalize operation on instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $generalizeOperation.Status) -severity 'debug';
         $azVM = (Get-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName);
-        if ($imageTags) {
-          $azImageConfig = (New-AzImageConfig `
-            -Location $region `
-            -Tag $imageTags `
-            -SourceVirtualMachineId $azVM.Id);
-        } else {
-          $azImageConfig = (New-AzImageConfig `
-            -Location $region `
-            -SourceVirtualMachineId $azVM.Id);
+        try {
+          if ($imageTags) {
+            $azImageConfig = (New-AzImageConfig `
+              -Location $region `
+              -Tag $imageTags `
+              -SourceVirtualMachineId $azVM.Id);
+          } else {
+            $azImageConfig = (New-AzImageConfig `
+              -Location $region `
+              -SourceVirtualMachineId $azVM.Id);
+          }
+          Write-Log -message ('{0} :: image config creation operation from instance id: {1}, in region: {2}, completed' -f $($MyInvocation.MyCommand.Name), $azVM.Id, $azVM.Location) -severity 'debug';
+          try {
+            $azImage = (New-AzImage `
+              -Image $azImageConfig `
+              -ImageName $imageName `
+              -ResourceGroupName $resourceGroupName);
+            Write-Log -message ('{0} :: image creation operation from instance: {1}, in resource group: {2}, has status: {3}, for image: {4}, in region: {5}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $azImage.ProvisioningState, $azImage.Name, $azImage.Location) -severity 'debug';
+          } catch {
+            Write-Log -message ('{0} :: image creation operation for image: {1}, in resource group: {2}, threw exception: {3}' -f $($MyInvocation.MyCommand.Name), $imageName, $resourceGroupName, $_.Exception.Message) -severity 'warn';
+            if ($_.Exception.InnerException) {
+              Write-Log -message ('{0} :: image creation operation for image: {1}, in resource group: {2}, threw inner exception: {3}' -f $($MyInvocation.MyCommand.Name), $imageName, $resourceGroupName, $_.Exception.InnerException.Message) -severity 'warn';
+            }
+          }
+        } catch {
+          Write-Log -message ('{0} :: image config creation operation from instance: {1}, in region: {2}, threw exception: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $region, $_.Exception.Message) -severity 'warn';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: image config creation operation from instance: {1}, in region: {2}, threw inner exception: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $region, $_.Exception.InnerException.Message) -severity 'warn';
+          }
         }
-        $azImage = (New-AzImage `
-          -Image $azImageConfig `
-          -ImageName $imageName `
-          -ResourceGroupName $resourceGroupName);
         break;
 
       }
