@@ -396,6 +396,7 @@ function New-CloudInstanceFromImageExport {
         $azVM = (Add-AzVMNetworkInterface `
           -VM $azVM `
           -Id $azNetworkInterface.Id);
+        Write-Log -message ('{0} :: add network interface operation for instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azVM.Status) -severity 'debug';
         $azVM = (Set-AzVMOSDisk `
           -VM $azVM `
           -ManagedDiskId $azDisk.Id `
@@ -403,13 +404,20 @@ function New-CloudInstanceFromImageExport {
           -DiskSizeInGB $targetInstanceDiskSizeGb `
           -CreateOption 'Attach' `
           -Windows:$true);
-        $azVM = (New-AzVM `
-          -ResourceGroupName $targetResourceGroupName `
-          -Location $targetResourceRegion `
-          -Tag $targetInstanceTags `
-          -VM $azVM);
-        $azVM;
-        # todo: return something. maybe a hashtable describing the created instance?
+        Write-Log -message ('{0} :: set os disk operation for instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azVM.Status) -severity 'debug';
+        try {
+          $azVM = (New-AzVM `
+            -ResourceGroupName $targetResourceGroupName `
+            -Location $targetResourceRegion `
+            -Tag $targetInstanceTags `
+            -VM $azVM);
+          Write-Log -message ('{0} :: instance creation operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, has status: {6}' -f $($MyInvocation.MyCommand.Name), $azVM.Name, $azMachineVariant, $azDisk.Id, $targetResourceGroupName, $targetResourceRegion, $azVM.Status) -severity 'debug';
+        } catch {
+          Write-Log -message ('{0} :: instance creation operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, threw exception: {6}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id, $targetResourceGroupName, $targetResourceRegion, $_.Exception.Message) -severity 'warn';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: instance creation operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, threw inner exception: {6}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id, $targetResourceGroupName, $targetResourceRegion, $_.Exception.InnerException.Message) -severity 'warn';
+          }
+        }
         break;
       }
       'google' {
