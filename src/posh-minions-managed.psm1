@@ -88,40 +88,48 @@ function Write-Log {
       }
     ),
 
-    [string] $source = 'posh-minions-managed',
+    [string] $source = $null,
 
-    [string] $logName = 'Application',
+    [string] $logName = $null,
 
     [switch] $supressOutput = $false
   )
   begin {
     $platformSupported = $true;
-    try {
-      if ((-not ([System.Diagnostics.EventLog]::Exists($logName))) -or (-not ([System.Diagnostics.EventLog]::SourceExists($source)))) {
+    if ($logName -and $source) {
+      try {
+        if ((-not ([System.Diagnostics.EventLog]::Exists($logName))) -or (-not ([System.Diagnostics.EventLog]::SourceExists($source)))) {
+          try {
+            New-EventLog -LogName $logName -Source $source
+          } catch {
+            Write-Error -Exception $_.Exception -message ('failed to create event log source: {0}/{1}' -f $logName, $source)
+          }
+        }
+      } catch [PlatformNotSupportedException] {
+        $platformSupported = $false;
+      } catch [System.Security.SecurityException] {
         try {
           New-EventLog -LogName $logName -Source $source
         } catch {
-          Write-Error -Exception $_.Exception -message ('failed to create event log source: {0}/{1}' -f $logName, $source)
         }
-      }
-    } catch [PlatformNotSupportedException] {
-      $platformSupported = $false;
-    } catch [System.Security.SecurityException] {
-      try {
-        New-EventLog -LogName $logName -Source $source
-      } catch {
       }
     }
   }
   process {
     if ($platformSupported) {
-      try {
-        Write-EventLog -LogName $logName -Source $source -EntryType $entryType -EventId $eventId -Message $message
+      if ($logName -and $source) {
+        try {
+          Write-EventLog -LogName $logName -Source $source -EntryType $entryType -EventId $eventId -Message $message
+          if (-not $supressOutput) {
+            Write-Output -InputObject ('[{0} {1}] {2}' -f $severity, (Get-Date).ToUniversalTime(), $message);
+          }
+        } catch {
+          Write-Verbose -Message ('failed to write to event log source: {0}/{1}. the log message was: {2}. the exception message was: {3}' -f $logName, $source, $message, $_.Exception.Message)
+        }
+      } else {
         if (-not $supressOutput) {
           Write-Output -InputObject ('[{0} {1}] {2}' -f $severity, (Get-Date).ToUniversalTime(), $message);
         }
-      } catch {
-        Write-Verbose -Message ('failed to write to event log source: {0}/{1}. the log message was: {2}. the exception message was: {3}' -f $logName, $source, $message, $_.Exception.Message)
       }
     } else {
       Write-Host -object ('[{0} {1}] {2}' -f $severity, (Get-Date).ToUniversalTime(), $message) -ForegroundColor @{ 'info' = 'White'; 'error' = 'Red'; 'warn' = 'DarkYellow'; 'debug' = 'DarkGray'; 'trace' = 'DarkGray' }[$severity]
