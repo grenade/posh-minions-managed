@@ -109,6 +109,7 @@
     # src/cloud.psm1
     'Get-CloudPlatform',
     'Get-CloudBucketResource',
+    'Set-CloudBucketResource',
     'New-CloudInstanceFromImageExport',
     'New-CloudImageFromInstance',
 
