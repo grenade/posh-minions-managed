@@ -62,7 +62,7 @@ function Get-CloudBucketResource {
   process {
     if ($force) {
       try {
-        New-Item -Path ([System.IO.Path]::GetDirectoryName($destination)) -ItemType Directory -Force | Out-Null
+        New-Item -Path ([System.IO.Path]::GetDirectoryName($destination)) -ItemType Directory -Force | Out-Null;
         Write-Log -message ('{0} :: destination directory created: {1} ' -f $($MyInvocation.MyCommand.Name), ([System.IO.Path]::GetDirectoryName($destination))) -severity 'debug';
       } catch {
         Write-Log -message ('{0} :: failed to create destination directory: {1} ' -f $($MyInvocation.MyCommand.Name), ([System.IO.Path]::GetDirectoryName($destination))) -severity 'error';
@@ -81,16 +81,16 @@ function Get-CloudBucketResource {
             throw ('no credentials detected for platform: {0}' -f $platform);
           }
           # https://docs.aws.amazon.com/powershell/latest/reference/items/Copy-S3Object.html
-          Copy-S3Object -BucketName $bucket -Key $key -LocalFile $destination;
+          Copy-S3Object -BucketName $bucket -Key $key -LocalFile $destination | Out-Null;
           break;
         }
         'azure' {
           # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstorageblobcontent?view=azps-1.8.0
-          Get-AzStorageBlobContent -Container $bucket -Blob $key -Destination $destination;
+          Get-AzStorageBlobContent -Container $bucket -Blob $key -Destination $destination | Out-Null;
           break;
         }
         'google' {
-          Read-GcsObject -Bucket $bucket -ObjectName $key -OutFile $destination;
+          Read-GcsObject -Bucket $bucket -ObjectName $key -OutFile $destination | Out-Null;
           break;
         }
         default {
