@@ -288,7 +288,7 @@ function New-UnattendFile {
       $flc = $unattend.CreateElement('FirstLogonCommands', $unattend.DocumentElement.NamespaceURI);
       foreach ($command in $commands) {
         $sc = $unattend.CreateElement('SynchronousCommand');
-        $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add');
+        $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
         $scSubs = @(
           @{
             'name' = 'Order';
@@ -309,14 +309,14 @@ function New-UnattendFile {
         );
         foreach ($scSub in $scSubs) {
           $se = $unattend.CreateElement($scSub['name']);
-          $se.AppendChild($unattend.CreateTextNode($scSub['value']));
-          $sc.AppendChild($se);
+          $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
+          $sc.AppendChild($se) | Out-Null;
         }
-        $flc.AppendChild($sc);
+        $flc.AppendChild($sc) | Out-Null;
       }
       $flcComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'oobeSystem' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
-      $flcComponent.AppendChild($flc);
-      $unattend.Save($destinationPath);
+      $flcComponent.AppendChild($flc) | Out-Null;
+      $unattend.Save($destinationPath) | Out-Null;
     } catch {
       Write-Log -message ('{0} :: exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.Message) -severity 'warn';
       if ($_.Exception.InnerException) {

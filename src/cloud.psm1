@@ -62,7 +62,7 @@ function Get-CloudBucketResource {
   process {
     if ($force) {
       try {
-        New-Item -Path ([System.IO.Path]::GetDirectoryName($destination)) -ItemType Directory -Force
+        New-Item -Path ([System.IO.Path]::GetDirectoryName($destination)) -ItemType Directory -Force | Out-Null
         Write-Log -message ('{0} :: destination directory created: {1} ' -f $($MyInvocation.MyCommand.Name), ([System.IO.Path]::GetDirectoryName($destination))) -severity 'debug';
       } catch {
         Write-Log -message ('{0} :: failed to create destination directory: {1} ' -f $($MyInvocation.MyCommand.Name), ([System.IO.Path]::GetDirectoryName($destination))) -severity 'error';
