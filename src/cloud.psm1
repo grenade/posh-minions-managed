@@ -90,6 +90,7 @@ function Get-CloudBucketResource {
           break;
         }
         'google' {
+          # https://googlecloudplatform.github.io/google-cloud-powershell/#/google-cloud-storage/GcsObject/Read-GcsObject
           Read-GcsObject -Bucket $bucket -ObjectName $key -OutFile $destination | Out-Null;
           break;
         }
@@ -107,6 +108,67 @@ function Get-CloudBucketResource {
       Write-Log -message ('{0} :: exception fetching {1} from {2}/{3}/{4}: {5}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key, $_.Exception.Message) -severity 'error';
       if ($_.Exception.InnerException) {
         Write-Log -message ('{0} :: inner exception fetching {1} from {2}/{3}/{4}: {5}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key, $_.Exception.InnerException.Message) -severity 'error';
+      }
+    }
+  }
+  end {
+    Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+}
+
+function Set-CloudBucketResource {
+  <#
+  .SYNOPSIS
+    Downloads a file resource from a cloud bucket
+  #>
+  param (
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('amazon', 'azure', 'google')]
+    [string] $platform,
+
+    [Parameter(Mandatory = $true)]
+    [string] $bucket,
+
+    [Parameter(Mandatory = $true)]
+    [string] $key,
+
+    [Parameter(Mandatory = $true)]
+    [string] $source
+  )
+  begin {
+    Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+  process {
+    try {
+      switch -regex ($platform) {
+        'amazon' {
+          if (-not (Get-CloudCredentialAvailability -platform $platform)) {
+            throw ('no credentials detected for platform: {0}' -f $platform);
+          }
+          # https://docs.aws.amazon.com/powershell/latest/reference/items/Write-S3Object.html
+          Write-S3Object -BucketName $bucket -Key $key -File $source | Out-Null;
+          break;
+        }
+        'azure' {
+          # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstorageblobcontent?view=azps-1.8.0
+          Set-AzStorageBlobContent -Container $bucket -Blob $key -File $source | Out-Null;
+          break;
+        }
+        'google' {
+          # https://googlecloudplatform.github.io/google-cloud-powershell/#/google-cloud-storage/GcsObject/Write-GcsObject
+          Write-GcsObject -Bucket $bucket -ObjectName $key -File $source | Out-Null;
+          break;
+        }
+        default {
+          throw [System.ArgumentException]('unsupported platform: {0}. use: amazon|azure' -f $platform);
+          break;
+        }
+      }
+      Write-Log -message ('{0} :: {1} uploaded to {2}/{3}/{4}' -f $($MyInvocation.MyCommand.Name), $source, $platform, $bucket, $key) -severity 'info';
+    } catch {
+      Write-Log -message ('{0} :: exception uploading {1} to {2}/{3}/{4}: {5}' -f $($MyInvocation.MyCommand.Name), $source, $platform, $bucket, $key, $_.Exception.Message) -severity 'error';
+      if ($_.Exception.InnerException) {
+        Write-Log -message ('{0} :: inner exception uploading {1} to {2}/{3}/{4}: {5}' -f $($MyInvocation.MyCommand.Name), $source, $platform, $bucket, $key, $_.Exception.InnerException.Message) -severity 'error';
       }
     }
   }
