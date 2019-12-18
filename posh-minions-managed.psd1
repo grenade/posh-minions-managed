@@ -110,6 +110,7 @@
     'Get-CloudPlatform',
     'Get-CloudBucketResource',
     'Set-CloudBucketResource',
+    'Test-CloudBucketResource',
     'New-CloudInstanceFromImageExport',
     'New-CloudImageFromInstance',
 

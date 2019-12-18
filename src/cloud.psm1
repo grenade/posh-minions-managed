@@ -119,7 +119,7 @@ function Get-CloudBucketResource {
 function Set-CloudBucketResource {
   <#
   .SYNOPSIS
-    Downloads a file resource from a cloud bucket
+    Uploads a local file resource to a cloud bucket
   #>
   param (
     [Parameter(Mandatory = $true)]
@@ -174,6 +174,56 @@ function Set-CloudBucketResource {
   }
   end {
     Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+  }
+}
+
+function Test-CloudBucketResource {
+  <#
+  .SYNOPSIS
+    Checks whether or not a cloud bucket resource exists
+  #>
+  param (
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('amazon', 'azure', 'google')]
+    [string] $platform,
+
+    [Parameter(Mandatory = $true)]
+    [string] $bucket,
+
+    [Parameter(Mandatory = $true)]
+    [string] $key
+  )
+  begin {
+    Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace' -supressOutput:$true;
+  }
+  process {
+    switch -regex ($platform) {
+      'amazon' {
+        if (-not (Get-CloudCredentialAvailability -platform $platform)) {
+          throw ('no credentials detected for platform: {0}' -f $platform);
+        }
+        # https://docs.aws.amazon.com/powershell/latest/reference/items/Get-S3Object.html
+        return [bool] (@(Get-S3Object -BucketName $bucket -Key $key).Length -gt 0);
+        break;
+      }
+      'azure' {
+        # https://docs.microsoft.com/en-us/powershell/module/az.storage/get-azstorageblob?view=azps-1.8.0
+        return [bool] (@(Get-AzStorageBlob -Container $bucket -Blob $key).Length -gt 0);
+        break;
+      }
+      'google' {
+        # https://googlecloudplatform.github.io/google-cloud-powershell/#/google-cloud-storage/GcsObject/Get-GcsObject
+        return [bool] (@(Get-GcsObject -Bucket $bucket -ObjectName $key).Length -gt 0);
+        break;
+      }
+      default {
+        throw [System.ArgumentException]('unsupported platform: {0}. use: amazon|azure' -f $platform);
+        break;
+      }
+    }
+  }
+  end {
+    Write-Log -message ('{0} :: end - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace' -supressOutput:$true;
   }
 }
 
