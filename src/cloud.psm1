@@ -514,7 +514,7 @@ function New-CloudInstanceFromImageExport {
           -SubnetId $azVirtualNetwork.Subnets[0].Id `
           -PublicIpAddressId $azPublicIpAddress.Id `
           -NetworkSecurityGroupId $azNetworkSecurityGroup.Id);
-        Write-Log -message ('{0} :: network interface create operation for network interface: {1}, in resource group: {2}, on subnet: {3}, with public ip: {4}, in network security group: {5}, has status: {6}' -f $($MyInvocation.MyCommand.Name), ('ni-{0}' -f $targetResourceId), $targetResourceGroupName, $azVirtualNetwork.Subnets[0].Id.Split('/')[-1], $azPublicIpAddress.Id.Split('/')[-1], $azNetworkInterface.NetworkSecurityGroupText, $azNetworkInterface.ProvisioningState) -severity 'debug';
+        Write-Log -message ('{0} :: network interface create operation for network interface: {1}, in resource group: {2}, on subnet: {3}, with public ip: {4}, in network security group: {5}, has status: {6}' -f $($MyInvocation.MyCommand.Name), ('ni-{0}' -f $targetResourceId), $targetResourceGroupName, $azVirtualNetwork.Subnets[0].Id.Split('/')[-1], $azPublicIpAddress.Id.Split('/')[-1], $azNetworkSecurityGroup.Id.Split('/')[-1], $azNetworkInterface.ProvisioningState) -severity 'debug';
 
         # virtual machine
         $azVM = (New-AzVMConfig `
