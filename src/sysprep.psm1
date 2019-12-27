@@ -286,8 +286,8 @@ function New-UnattendFile {
 
       $nsmgr = New-Object System.Xml.XmlNamespaceManager($unattend.NameTable);
       $nsmgr.AddNamespace('ns', 'urn:schemas-microsoft-com:unattend');
-      $oobeSystemMicrosoftWindowsShellSetup = $xml.SelectSingleNode("//ns:settings[@pass='oobeSystem']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
-      $specializeMicrosoftWindowsShellSetup = $xml.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
+      $oobeSystemMicrosoftWindowsShellSetup = $unattend.SelectSingleNode("//ns:settings[@pass='oobeSystem']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
+      $specializeMicrosoftWindowsShellSetup = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
 
       $order = 0;
       $flc = $unattend.CreateElement('FirstLogonCommands', $unattend.DocumentElement.NamespaceURI);
