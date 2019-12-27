@@ -30,7 +30,6 @@ function New-UnattendFile {
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
     [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
     [string] $productKey,
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-registeredorganization
@@ -314,8 +313,23 @@ function New-UnattendFile {
         }
         $flc.AppendChild($sc) | Out-Null;
       }
-      $flcComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'oobeSystem' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
-      $flcComponent.AppendChild($flc) | Out-Null;
+      $flcParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'oobeSystem' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
+      $flcParentComponent.AppendChild($flc) | Out-Null;
+      if (-not $computerName) {
+        $computerNameParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'specialize' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
+        $computerNameNode = $computerNameParentComponent.SelectSingleNode('ComputerName');
+        $computerNameParentComponent.RemoveChild($computerNameNode) | Out-Null;
+      }
+      if (-not $productKey) {
+        $productKeyParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'specialize' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
+        $productKeyNode = $productKeyParentComponent.SelectSingleNode('ProductKey');
+        $productKeyParentComponent.RemoveChild($productKeyNode) | Out-Null;
+      }
+      if (-not $timeZone) {
+        $timeZoneParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'specialize' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
+        $timeZoneNode = $timeZoneParentComponent.SelectSingleNode('TimeZone');
+        $timeZoneParentComponent.RemoveChild($timeZoneNode) | Out-Null;
+      }
       $unattend.Save($destinationPath) | Out-Null;
     } catch {
       Write-Log -message ('{0} :: exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.Message) -severity 'warn';
