@@ -283,6 +283,12 @@ function New-UnattendFile {
   process {
     try {
       $unattend = $template.Clone();
+
+      $nsmgr = New-Object System.Xml.XmlNamespaceManager($unattend.NameTable);
+      $nsmgr.AddNamespace('ns', 'urn:schemas-microsoft-com:unattend');
+      $oobeSystemMicrosoftWindowsShellSetup = $xml.SelectSingleNode("//ns:settings[@pass='oobeSystem']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
+      $specializeMicrosoftWindowsShellSetup = $xml.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
+
       $order = 0;
       $flc = $unattend.CreateElement('FirstLogonCommands', $unattend.DocumentElement.NamespaceURI);
       foreach ($command in $commands) {
@@ -313,22 +319,15 @@ function New-UnattendFile {
         }
         $flc.AppendChild($sc) | Out-Null;
       }
-      $flcParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'oobeSystem' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
-      $flcParentComponent.AppendChild($flc) | Out-Null;
+      $oobeSystemMicrosoftWindowsShellSetup.AppendChild($flc) | Out-Null;
       if (-not $computerName) {
-        $computerNameParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'specialize' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
-        $computerNameNode = $computerNameParentComponent.SelectSingleNode('ComputerName');
-        $computerNameParentComponent.RemoveChild($computerNameNode) | Out-Null;
+        $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ComputerName', $nsmgr)) | Out-Null;
       }
       if (-not $productKey) {
-        $productKeyParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'specialize' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
-        $productKeyNode = $productKeyParentComponent.SelectSingleNode('ProductKey');
-        $productKeyParentComponent.RemoveChild($productKeyNode) | Out-Null;
+        $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ProductKey', $nsmgr)) | Out-Null;
       }
       if (-not $timeZone) {
-        $timeZoneParentComponent = ($unattend.unattend.settings | Where-Object -Property 'pass' -eq -Value 'specialize' | Select-Object -ExpandProperty 'component' | Where-Object -Property name -eq -Value 'Microsoft-Windows-Shell-Setup');
-        $timeZoneNode = $timeZoneParentComponent.SelectSingleNode('TimeZone');
-        $timeZoneParentComponent.RemoveChild($timeZoneNode) | Out-Null;
+        $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:TimeZone', $nsmgr)) | Out-Null;
       }
       $unattend.Save($destinationPath) | Out-Null;
     } catch {
