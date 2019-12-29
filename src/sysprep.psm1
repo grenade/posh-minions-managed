@@ -124,6 +124,8 @@ function New-UnattendFile {
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-disableautodaylighttimeset
     [bool] $disableAutoDaylightTimeSet = $true,
 
+    [bool] $showWindowsLive = $false,
+
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-firstlogoncommands
     [hashtable[]] $commands = @(
       @{
@@ -135,6 +137,10 @@ function New-UnattendFile {
         'CommandLine' = 'echo "goodbye cruel world"'
       }
     ),
+
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('Windows 7', 'Windows 10', 'Windows Server 1903', 'Windows Server 1909', 'Windows Server 2012', 'Windows Server 2016', 'Windows Server 2019')]
+    [string] $os,
 
     [xml] $template = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -263,6 +269,7 @@ function New-UnattendFile {
         <SkipMachineOOBE>$(if ($skipMachineOOBE) { 'true' } else { 'false' })</SkipMachineOOBE>
         <ProtectYourPC>$protectYourPC</ProtectYourPC>
       </OOBE>
+      <ShowWindowsLive>$(if ($showWindowsLive) { 'true' } else { 'false' })</ShowWindowsLive>
       <UserAccounts>
         <AdministratorPassword>
           <Value><![CDATA[$administratorPassword]]></Value>
@@ -320,6 +327,14 @@ function New-UnattendFile {
         $flc.AppendChild($sc) | Out-Null;
       }
       $oobeSystemMicrosoftWindowsShellSetup.AppendChild($flc) | Out-Null;
+      if ($os -eq 'Windows 7') {
+        $oobeNode = $oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:OOBE', $nsmgr);
+        $oobeNode.RemoveChild($oobeNode.SelectSingleNode('./ns:HideOEMRegistrationScreen', $nsmgr)) | Out-Null;
+        $oobeNode.RemoveChild($oobeNode.SelectSingleNode('./ns:HideOnlineAccountScreens', $nsmgr)) | Out-Null;
+        $oobeSystemMicrosoftWindowsShellSetup.RemoveChild($oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:DisableAutoDaylightTimeSet', $nsmgr)) | Out-Null;
+      } else {
+        $oobeSystemMicrosoftWindowsShellSetup.RemoveChild($oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ShowWindowsLive', $nsmgr)) | Out-Null;
+      }
       if (-not $computerName) {
         $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ComputerName', $nsmgr)) | Out-Null;
       }
