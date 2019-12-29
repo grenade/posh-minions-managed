@@ -139,7 +139,7 @@ function New-UnattendFile {
     ),
 
     [Parameter(Mandatory = $true)]
-    [ValidateSet('Windows 7', 'Windows 10', 'Windows Server 1903', 'Windows Server 1909', 'Windows Server 2012', 'Windows Server 2016', 'Windows Server 2019')]
+    [ValidateSet('Windows 7', 'Windows 10', 'Windows Server 1903', 'Windows Server 1909', 'Windows Server 2012 R2', 'Windows Server 2016', 'Windows Server 2019')]
     [string] $os,
 
     [xml] $template = @"
