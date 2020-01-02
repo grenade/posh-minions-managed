@@ -596,6 +596,7 @@ function New-CloudImageFromInstance {
     Write-Log -message ('{0} :: param/imageName: {1}' -f $($MyInvocation.MyCommand.Name), $imageName) -severity 'trace';
     foreach ($key in $imageTags.Keys) {
       Write-Log -message ('{0} :: param/imageTags.{1}: {2}' -f $($MyInvocation.MyCommand.Name), $key, $imageTags[$key]) -severity 'trace';
+      Write-Log -message ('{0} :: key type: {1}, value type: {2}' -f $($MyInvocation.MyCommand.Name), $key.GetType().FullName, $imageTags[$key].GetType().FullName) -severity 'trace';
     }
   }
   process {
