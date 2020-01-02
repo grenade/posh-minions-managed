@@ -589,6 +589,14 @@ function New-CloudImageFromInstance {
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
+    Write-Log -message ('{0} :: param/platform: {1}' -f $($MyInvocation.MyCommand.Name), $platform) -severity 'trace';
+    Write-Log -message ('{0} :: param/resourceGroupName: {1}' -f $($MyInvocation.MyCommand.Name), $resourceGroupName) -severity 'trace';
+    Write-Log -message ('{0} :: param/region: {1}' -f $($MyInvocation.MyCommand.Name), $region) -severity 'trace';
+    Write-Log -message ('{0} :: param/instanceName: {1}' -f $($MyInvocation.MyCommand.Name), $instanceName) -severity 'trace';
+    Write-Log -message ('{0} :: param/imageName: {1}' -f $($MyInvocation.MyCommand.Name), $imageName) -severity 'trace';
+    foreach ($key in $imageTags.Keys) {
+      Write-Log -message ('{0} :: param/imageTags.{1}: {2}' -f $($MyInvocation.MyCommand.Name), $key, $imageTags[$key]) -severity 'trace';
+    }
   }
   process {
     switch -regex ($platform) {
