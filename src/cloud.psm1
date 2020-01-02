@@ -636,7 +636,7 @@ function New-CloudImageFromInstance {
               -Location $region `
               -SourceVirtualMachineId $azVM.Id);
           }
-          Write-Log -message ('{0} :: image config creation operation from instance id: {1}, in region: {2}, completed' -f $($MyInvocation.MyCommand.Name), $azVM.Id, $azVM.Location) -severity 'debug';
+          Write-Log -message ('{0} :: image config creation operation from instance id: {1}, in region: {2}, completed' -f $($MyInvocation.MyCommand.Name), $azVM.Id, $region) -severity 'debug';
           try {
             $azImage = (New-AzImage `
               -Image $azImageConfig `
