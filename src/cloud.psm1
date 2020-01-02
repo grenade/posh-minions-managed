@@ -596,7 +596,6 @@ function New-CloudImageFromInstance {
     Write-Log -message ('{0} :: param/imageName: {1}' -f $($MyInvocation.MyCommand.Name), $imageName) -severity 'trace';
     foreach ($key in $imageTags.Keys) {
       Write-Log -message ('{0} :: param/imageTags.{1}: {2}' -f $($MyInvocation.MyCommand.Name), $key, $imageTags[$key]) -severity 'trace';
-      Write-Log -message ('{0} :: key type: {1}, value type: {2}' -f $($MyInvocation.MyCommand.Name), $key.GetType().FullName, $imageTags[$key].GetType().FullName) -severity 'trace';
     }
   }
   process {
@@ -649,12 +648,14 @@ function New-CloudImageFromInstance {
             if ($_.Exception.InnerException) {
               Write-Log -message ('{0} :: image create operation for image: {1}, in resource group: {2}, threw inner exception: {3}' -f $($MyInvocation.MyCommand.Name), $imageName, $resourceGroupName, $_.Exception.InnerException.Message) -severity 'error';
             }
+            throw
           }
         } catch {
           Write-Log -message ('{0} :: image config creation operation from instance: {1}, in region: {2}, threw exception: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $region, $_.Exception.Message) -severity 'error';
           if ($_.Exception.InnerException) {
             Write-Log -message ('{0} :: image config creation operation from instance: {1}, in region: {2}, threw inner exception: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $region, $_.Exception.InnerException.Message) -severity 'error';
           }
+          throw
         }
         break;
 
