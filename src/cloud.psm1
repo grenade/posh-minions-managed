@@ -548,8 +548,8 @@ function New-CloudInstanceFromImageExport {
             $azVM = (Set-AzVMDataDisk `
               -VM $azVM `
               -Lun ($i - 1) `
-              -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB) `
-              -StorageAccountType $azDiskVariant;
+              -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
+              -StorageAccountType $azDiskVariant);
             Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
           }
         }
