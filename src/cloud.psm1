@@ -297,13 +297,17 @@ function New-CloudInstanceFromImageExport {
 
     [hashtable] $targetInstanceTags = @{},
 
-    [ValidateSet('ssd', 'hdd')]
-    [string] $targetInstanceDiskVariant = 'ssd',
-
-    [Parameter(Mandatory = $true)]
-    [int] $targetInstanceDiskSizeGb,
-
-    [int] $targetInstanceDiskIops,
+    [hashtable[]] $targetInstanceDisks = @(
+      @{
+        'Variant' = 'ssd';
+        'SizeInGB' = 64;
+        'Os' = $true
+      },
+      @{
+        'Variant' = 'ssd';
+        'SizeInGB' = 128
+      }
+    ),
 
     [Parameter(Mandatory = $true)]
     [string] $targetVirtualNetworkName,
@@ -365,9 +369,11 @@ function New-CloudInstanceFromImageExport {
     Write-Log -message ('{0} :: param/targetInstanceCpuCount: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceCpuCount) -severity 'trace';
     Write-Log -message ('{0} :: param/targetInstanceRamGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceRamGb) -severity 'trace';
 
-    Write-Log -message ('{0} :: param/targetInstanceDiskVariant: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskVariant) -severity 'trace';
-    Write-Log -message ('{0} :: param/targetInstanceDiskSizeGb: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskSizeGb) -severity 'trace';
-    Write-Log -message ('{0} :: param/targetInstanceDiskIops: {1}' -f $($MyInvocation.MyCommand.Name), $targetInstanceDiskIops) -severity 'trace';
+    for ($i = 0; $i -lt $targetInstanceDisks.Length; $i++) {
+      foreach ($key in $targetInstanceDisks[$i].Keys) {
+        Write-Log -message ('{0} :: param/targetInstanceDisks[{1}].{2}: {3}' -f $($MyInvocation.MyCommand.Name), $i, $key, $targetInstanceDisks[$i][$key]) -severity 'trace';
+      }
+    }
 
     Write-Log -message ('{0} :: param/targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
     Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
@@ -403,17 +409,6 @@ function New-CloudInstanceFromImageExport {
           }
         }
         Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $azMachineVariant) -severity 'trace';
-        switch ($targetInstanceDiskVariant) {
-          'hdd' {
-            $azDiskVariant = 'Standard_LRS';
-            break;
-          }
-          'ssd' {
-            $azDiskVariant = 'StandardSSD_LRS';
-            break;
-          }
-        }
-        Write-Log -message ('{0} :: var/azDiskVariant: {1}' -f $($MyInvocation.MyCommand.Name), $azDiskVariant) -severity 'trace';
         $tags['resourceId'] = $targetResourceId;
 
         # resource group
@@ -432,12 +427,12 @@ function New-CloudInstanceFromImageExport {
 
         # boot/os disk
         $azDiskConfig = (New-AzDiskConfig `
-          -SkuName $azDiskVariant `
+          -SkuName 'StandardSSD_LRS' `
           -OsType 'Windows' `
           -UploadSizeInBytes ((Get-Item -Path $localImagePath).Length) `
           -Location $targetResourceRegion `
           -CreateOption 'Upload');
-        Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2}, completed' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $azDiskVariant) -severity 'debug';
+        Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2}, completed' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), 'StandardSSD_LRS') -severity 'debug';
         $azDisk = (New-AzDisk `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName ('disk-{0}' -f $targetResourceId) `
@@ -525,14 +520,40 @@ function New-CloudInstanceFromImageExport {
           -VM $azVM `
           -Id $azNetworkInterface.Id);
         Write-Log -message ('{0} :: add network interface operation for instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azVM.ProvisioningState) -severity 'debug';
-        $azVM = (Set-AzVMOSDisk `
-          -VM $azVM `
-          -ManagedDiskId $azDisk.Id `
-          -StorageAccountType $azDiskVariant `
-          -DiskSizeInGB $targetInstanceDiskSizeGb `
-          -CreateOption 'Attach' `
-          -Windows:$true);
-        Write-Log -message ('{0} :: set os disk operation for instance: {1}, in resource group: {2}, for disk: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azDisk.Id.Split('/')[-1], $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
+        for ($i = 0; $i -lt $targetInstanceDisks.Length; $i++) {
+          switch ($targetInstanceDisks[$i].Variant) {
+            'hdd' {
+              $azDiskVariant = 'Standard_LRS';
+              break;
+            }
+            'ssd' {
+              $azDiskVariant = 'StandardSSD_LRS';
+              break;
+            }
+            default {
+              $azDiskVariant = 'Standard_LRS';
+              break;
+            }
+          }
+          if ($targetInstanceDisks[$i].Os) {
+            $azVM = (Set-AzVMOSDisk `
+              -VM $azVM `
+              -ManagedDiskId $azDisk.Id `
+              -StorageAccountType $azDiskVariant `
+              -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
+              -CreateOption 'Attach' `
+              -Windows:$true);
+            Write-Log -message ('{0} :: set os disk operation for instance: {1}, in resource group: {2}, for os disk: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azDisk.Id.Split('/')[-1], $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
+          } else {
+            $azVM = (Set-AzVMDataDisk `
+              -VM $azVM `
+              -Lun ($i - 1) `
+              -StorageAccountType $azDiskVariant `
+              -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
+              -CreateOption 'Empty');
+            Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
+          }
+        }
         try {
           $azVM = (New-AzVM `
             -ResourceGroupName $targetResourceGroupName `
