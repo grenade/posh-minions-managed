@@ -304,6 +304,12 @@ function New-CloudInstanceFromImageExport {
         'Os' = $true
       },
       @{
+        'Name' = 'DataDisk0';
+        'Variant' = 'ssd';
+        'SizeInGB' = 128
+      },
+      @{
+        'Name' = 'DataDisk1';
         'Variant' = 'ssd';
         'SizeInGB' = 128
       }
@@ -545,10 +551,12 @@ function New-CloudInstanceFromImageExport {
               -Windows:$true);
             Write-Log -message ('{0} :: set os disk operation for instance: {1}, in resource group: {2}, for os disk: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azDisk.Id.Split('/')[-1], $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
           } else {
-            $azVM = (Set-AzVMDataDisk `
+            $azVM = (Add-AzVMDataDisk `
               -VM $azVM `
+              -Name $(if ($targetInstanceDisks[$i].Name) { $targetInstanceDisks[$i].Name } else { ('DataDisk{0}' -f ($i - 1)) }) `
               -Lun ($i - 1) `
               -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
+              -CreateOption 'Empty' `
               -StorageAccountType $azDiskVariant);
             Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
           }
