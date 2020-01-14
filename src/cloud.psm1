@@ -304,12 +304,10 @@ function New-CloudInstanceFromImageExport {
         'Os' = $true
       },
       @{
-        'Name' = 'DataDisk0';
         'Variant' = 'ssd';
         'SizeInGB' = 128
       },
       @{
-        'Name' = 'DataDisk1';
         'Variant' = 'ssd';
         'SizeInGB' = 128
       }
@@ -553,7 +551,7 @@ function New-CloudInstanceFromImageExport {
           } else {
             $azVM = (Add-AzVMDataDisk `
               -VM $azVM `
-              -Name $(if ($targetInstanceDisks[$i].Name) { $targetInstanceDisks[$i].Name } else { ('DataDisk{0}' -f ($i - 1)) }) `
+              -Name ('{0}-data-disk-{1}' -f $targetInstanceName, ($i - 1)) `
               -Lun ($i - 1) `
               -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
               -CreateOption 'Empty' `
