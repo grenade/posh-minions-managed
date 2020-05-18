@@ -413,7 +413,6 @@ function New-CloudInstanceFromImageExport {
           }
         }
         Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $azMachineVariant) -severity 'trace';
-        $tags['resourceId'] = $targetResourceId;
 
         # resource group
         $azResourceGroup = (Get-AzResourceGroup `
@@ -523,7 +522,7 @@ function New-CloudInstanceFromImageExport {
         $azVM = (Add-AzVMNetworkInterface `
           -VM $azVM `
           -Id $azNetworkInterface.Id);
-        Write-Log -message ('{0} :: add network interface operation for instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azVM.ProvisioningState) -severity 'debug';
+        Write-Log -message ('{0} :: add network interface operation for instance: {1}, in resource group: {2}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName) -severity 'debug';
         for ($i = 0; $i -lt $targetInstanceDisks.Length; $i++) {
           switch ($targetInstanceDisks[$i].Variant) {
             'hdd' {
@@ -547,7 +546,7 @@ function New-CloudInstanceFromImageExport {
               -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
               -CreateOption 'Attach' `
               -Windows:$true);
-            Write-Log -message ('{0} :: set os disk operation for instance: {1}, in resource group: {2}, for os disk: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azDisk.Id.Split('/')[-1], $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
+            Write-Log -message ('{0} :: set os disk operation for instance: {1}, in resource group: {2}, for os disk: {3}, with disk variant: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, $azDisk.Id.Split('/')[-1], $azDiskVariant) -severity 'debug';
           } else {
             $azVM = (Add-AzVMDataDisk `
               -VM $azVM `
@@ -556,7 +555,7 @@ function New-CloudInstanceFromImageExport {
               -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
               -CreateOption 'Empty' `
               -StorageAccountType $azDiskVariant);
-            Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, has status: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant, $azVM.ProvisioningState) -severity 'debug';
+            Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant) -severity 'debug';
           }
         }
         try {
@@ -565,7 +564,7 @@ function New-CloudInstanceFromImageExport {
             -Location $targetResourceRegion `
             -Tag $targetInstanceTags `
             -VM $azVM);
-          Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, has status: {6}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion, $azVM.ProvisioningState) -severity 'debug';
+          Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
         } catch {
           Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, threw exception: {6}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion, $_.Exception.Message) -severity 'error';
           if ($_.Exception.InnerException) {
@@ -652,23 +651,32 @@ function New-CloudImageFromInstance {
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName);
         try {
-          if ($imageTags) {
-            $azImageConfig = (New-AzImageConfig `
-              -Location $region `
-              -Tag $imageTags `
-              -SourceVirtualMachineId $azVM.Id);
-          } else {
-            $azImageConfig = (New-AzImageConfig `
-              -Location $region `
-              -SourceVirtualMachineId $azVM.Id);
-          }
+          $azImageConfig = (New-AzImageConfig `
+            -Location $region `
+            -SourceVirtualMachineId $azVM.Id);
           Write-Log -message ('{0} :: image config creation operation from instance id: {1}, in region: {2}, completed' -f $($MyInvocation.MyCommand.Name), $instanceName, $region) -severity 'debug';
           try {
             $azImage = (New-AzImage `
               -Image $azImageConfig `
               -ImageName $imageName `
               -ResourceGroupName $resourceGroupName);
-            Write-Log -message ('{0} :: image creation operation from instance: {1}, in resource group: {2}, has status: {3}, for image: {4}, in region: {5}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $azImage.ProvisioningState, $azImage.Name, $azImage.Location) -severity 'debug';
+            if ($azImage) {
+              Write-Log -message ('{0} :: image creation operation from instance: {1}, in resource group: {2}, has status: {3}, for image: {4}, in region: {5}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $azImage.ProvisioningState, $azImage.Name, $azImage.Location) -severity 'debug';
+              if ($imageTags) {
+                try {
+                  $azImageResource = (Set-AzResource `
+                    -ResourceId $azImage.id `
+                    -Tag $imageTags `
+                    -Force);
+                  Write-Log -message ('{0} :: image tagging operation for image: {1}, completed' -f $($MyInvocation.MyCommand.Name), $imageName) -severity 'debug';
+                } catch {
+                  Write-Log -message ('{0} :: image tagging operation for image: {1}, in resource group: {2}, threw exception: {3}' -f $($MyInvocation.MyCommand.Name), $imageName, $resourceGroupName, $_.Exception.Message) -severity 'error';
+                  if ($_.Exception.InnerException) {
+                    Write-Log -message ('{0} :: image tagging operation for image: {1}, in resource group: {2}, threw inner exception: {3}' -f $($MyInvocation.MyCommand.Name), $imageName, $resourceGroupName, $_.Exception.InnerException.Message) -severity 'error';
+                  }
+                }
+              }
+            }
           } catch {
             Write-Log -message ('{0} :: image create operation for image: {1}, in resource group: {2}, threw exception: {3}' -f $($MyInvocation.MyCommand.Name), $imageName, $resourceGroupName, $_.Exception.Message) -severity 'error';
             if ($_.Exception.InnerException) {
