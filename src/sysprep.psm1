@@ -126,6 +126,9 @@ function New-UnattendFile {
 
     [bool] $showWindowsLive = $false,
 
+    # https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/enable-remote-desktop-by-using-an-answer-file
+    [bool] $enableRDP = $false,
+
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-firstlogoncommands
     [hashtable[]] $commands = @(
       @{
@@ -248,6 +251,21 @@ function New-UnattendFile {
       <ProductKey>$productKey</ProductKey>
       <TimeZone>$timeZone</TimeZone>
     </component>
+    <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <fDenyTSConnections>false</fDenyTSConnections>
+    </component>
+    <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <UserAuthentication>0</UserAuthentication>
+    </component>
+    <component name="Networking-MPSSVC-Svc" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <FirewallGroups>
+        <FirewallGroup wcm:action="add" wcm:keyValue="rd1">
+          <Active>true</Active>
+          <Group>Remote Desktop</Group>
+          <Profile>all</Profile>
+        </FirewallGroup>
+      </FirewallGroups>
+    </component> 
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -334,6 +352,12 @@ function New-UnattendFile {
         $oobeSystemMicrosoftWindowsShellSetup.RemoveChild($oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:DisableAutoDaylightTimeSet', $nsmgr)) | Out-Null;
       } else {
         $oobeSystemMicrosoftWindowsShellSetup.RemoveChild($oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ShowWindowsLive', $nsmgr)) | Out-Null;
+      }
+      if (($os -ne 'Windows 7') -or (($os -eq 'Windows 7') -and (-not $enableRDP))) {
+        $specializeSettingsPass = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']", $nsmgr);
+        $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Microsoft-Windows-TerminalServices-LocalSessionManager']", $nsmgr)) | Out-Null;
+        $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Microsoft-Windows-TerminalServices-RDP-WinStationExtensions']", $nsmgr)) | Out-Null;
+        $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Networking-MPSSVC-Svc']", $nsmgr)) | Out-Null;
       }
       if (-not $computerName) {
         $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ComputerName', $nsmgr)) | Out-Null;
