@@ -381,12 +381,12 @@ function New-CloudInstanceFromImageExport {
 
     Write-Log -message ('{0} :: param/targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
     Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
-    if ($targetVirtualNetworkDnsServers -is [String]) {
-      Write-Log -message ('{0} :: param/targetVirtualNetworkDnsServers: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkDnsServers) -severity 'trace';
-    } else {
+    if ($targetVirtualNetworkDnsServers.GetType().Name.StartsWith('List')) {
       for ($i = 0; $i -lt $targetVirtualNetworkDnsServers.Length; $i++) {
         Write-Log -message ('{0} :: param/targetVirtualNetworkDnsServers[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $i, $targetVirtualNetworkDnsServers[$i]) -severity 'trace';
       }
+    } else {
+      Write-Log -message ('{0} :: param/targetVirtualNetworkDnsServers: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkDnsServers) -severity 'trace';
     }
     Write-Log -message ('{0} :: param/targetSubnetName: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetName) -severity 'trace';
     Write-Log -message ('{0} :: param/targetSubnetAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetSubnetAddressPrefix) -severity 'trace';
@@ -394,12 +394,12 @@ function New-CloudInstanceFromImageExport {
     Write-Log -message ('{0} :: param/targetFirewallConfigurationName: {1}' -f $($MyInvocation.MyCommand.Name), $targetFirewallConfigurationName) -severity 'trace';
     for ($i = 0; $i -lt $targetFirewallRules.Length; $i++) {
       foreach ($key in $targetFirewallRules[$i].Keys) {
-        if (($targetFirewallRules[$i][$key].GetType().IsValueType) -or ($targetFirewallRules[$i][$key] -is [String])) {
-          Write-Log -message ('{0} :: param/targetFirewallRules[{1}][{2}]: {3}' -f $($MyInvocation.MyCommand.Name), $i, $key, $targetFirewallRules[$i][$key]) -severity 'trace';
-        } else {
+        if ($targetFirewallRules[$i][$key].GetType().Name.StartsWith('List')) {
           for ($j = 0; $j -lt $targetFirewallRules[$i][$key].Length; $j++) {
             Write-Log -message ('{0} :: param/targetFirewallRules[{1}][{2}][{3}]: {4}' -f $($MyInvocation.MyCommand.Name), $i, $key, $j, $targetFirewallRules[$i][$key][$j]) -severity 'trace';
           }
+        } else {
+          Write-Log -message ('{0} :: param/targetFirewallRules[{1}][{2}]: {3}' -f $($MyInvocation.MyCommand.Name), $i, $key, $targetFirewallRules[$i][$key]) -severity 'trace';
         }
       }
     }
