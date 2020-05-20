@@ -170,6 +170,9 @@
         'unattend',
         'vhd'
       )
+
+      # A URL to an icon representing this module.
+      IconUri = 'https://raw.githubusercontent.com/grenade/posh-minions-managed/master/ninja-minion.png'
       
       # A URL to the license for this module.
       LicenseUri = 'https://opensource.org/licenses/MIT'
