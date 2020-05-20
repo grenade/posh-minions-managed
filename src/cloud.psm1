@@ -382,7 +382,7 @@ function New-CloudInstanceFromImageExport {
     Write-Log -message ('{0} :: param/targetVirtualNetworkName: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName) -severity 'trace';
     Write-Log -message ('{0} :: param/targetVirtualNetworkAddressPrefix: {1}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkAddressPrefix) -severity 'trace';
     if ($targetVirtualNetworkDnsServers.GetType().Name.StartsWith('List')) {
-      for ($i = 0; $i -lt $targetVirtualNetworkDnsServers.Length; $i++) {
+      for ($i = 0; $i -lt $targetVirtualNetworkDnsServers.Count; $i++) {
         Write-Log -message ('{0} :: param/targetVirtualNetworkDnsServers[{1}]: {2}' -f $($MyInvocation.MyCommand.Name), $i, $targetVirtualNetworkDnsServers[$i]) -severity 'trace';
       }
     } else {
@@ -395,7 +395,7 @@ function New-CloudInstanceFromImageExport {
     for ($i = 0; $i -lt $targetFirewallRules.Length; $i++) {
       foreach ($key in $targetFirewallRules[$i].Keys) {
         if ($targetFirewallRules[$i][$key].GetType().Name.StartsWith('List')) {
-          for ($j = 0; $j -lt $targetFirewallRules[$i][$key].Length; $j++) {
+          for ($j = 0; $j -lt $targetFirewallRules[$i][$key].Count; $j++) {
             Write-Log -message ('{0} :: param/targetFirewallRules[{1}][{2}][{3}]: {4}' -f $($MyInvocation.MyCommand.Name), $i, $key, $j, $targetFirewallRules[$i][$key][$j]) -severity 'trace';
           }
         } else {
