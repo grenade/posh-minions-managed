@@ -26,6 +26,7 @@ function New-UnattendFile {
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
     [string] $administratorPassword = (New-Password),
+    [string] $encodedAdministratorPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($administratorPassword)),
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
@@ -271,8 +272,8 @@ function New-UnattendFile {
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
         <Password>
-          <Value><![CDATA[$administratorPassword]]></Value>
-          <PlainText>true</PlainText>
+          <Value>$encodedAdministratorPassword</Value>
+          <PlainText>false</PlainText>
         </Password>
         <Enabled>true</Enabled>
         <Username>Administrator</Username>
@@ -290,8 +291,8 @@ function New-UnattendFile {
       <ShowWindowsLive>$(if ($showWindowsLive) { 'true' } else { 'false' })</ShowWindowsLive>
       <UserAccounts>
         <AdministratorPassword>
-          <Value><![CDATA[$administratorPassword]]></Value>
-          <PlainText>true</PlainText>
+          <Value>$encodedAdministratorPassword</Value>
+          <PlainText>false</PlainText>
         </AdministratorPassword>
       </UserAccounts>
       <RegisteredOrganization>$registeredOrganization</RegisteredOrganization>
