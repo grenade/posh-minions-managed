@@ -146,6 +146,8 @@ function New-UnattendFile {
     [ValidateSet('Windows 7', 'Windows 10', 'Windows Server 1903', 'Windows Server 1909', 'Windows Server 2012 R2', 'Windows Server 2016', 'Windows Server 2019')]
     [string] $os,
 
+    [switch] $obfuscatePassword = $false,
+
     [xml] $template = @"
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
@@ -272,8 +274,8 @@ function New-UnattendFile {
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
         <Password>
-          <Value>$encodedAdministratorPassword</Value>
-          <PlainText>false</PlainText>
+          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { $administratorPassword })</Value>
+          <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </Password>
         <Enabled>true</Enabled>
         <Username>Administrator</Username>
@@ -291,8 +293,8 @@ function New-UnattendFile {
       <ShowWindowsLive>$(if ($showWindowsLive) { 'true' } else { 'false' })</ShowWindowsLive>
       <UserAccounts>
         <AdministratorPassword>
-          <Value>$encodedAdministratorPassword</Value>
-          <PlainText>false</PlainText>
+          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { $administratorPassword })</Value>
+          <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </AdministratorPassword>
       </UserAccounts>
       <RegisteredOrganization>$registeredOrganization</RegisteredOrganization>
@@ -318,7 +320,7 @@ function New-UnattendFile {
       $order = 0;
       $flc = $unattend.CreateElement('FirstLogonCommands', $unattend.DocumentElement.NamespaceURI);
       foreach ($command in $commands) {
-        $sc = $unattend.CreateElement('SynchronousCommand');
+        $sc = $unattend.CreateElement('SynchronousCommand', $unattend.DocumentElement.NamespaceURI);
         $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
         $scSubs = @(
           @{
