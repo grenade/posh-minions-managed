@@ -274,7 +274,7 @@ function New-UnattendFile {
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
         <Password>
-          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { $administratorPassword })</Value>
+          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
           <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </Password>
         <Enabled>true</Enabled>
@@ -293,7 +293,7 @@ function New-UnattendFile {
       <ShowWindowsLive>$(if ($showWindowsLive) { 'true' } else { 'false' })</ShowWindowsLive>
       <UserAccounts>
         <AdministratorPassword>
-          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { $administratorPassword })</Value>
+          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
           <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </AdministratorPassword>
       </UserAccounts>
