@@ -26,7 +26,7 @@ function New-UnattendFile {
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
     [string] $administratorPassword = (New-Password),
-    [string] $encodedAdministratorPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($administratorPassword)),
+    [string] $encodedAdministratorPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes([string]::Join('', @([char[]]('{0}AdministratorPassword' -f $administratorPassword) | % { '{0}{1}' -f $_, [char]0x00 })))),
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
