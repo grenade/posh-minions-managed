@@ -26,7 +26,8 @@ function New-UnattendFile {
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
     [string] $administratorPassword = (New-Password),
-    [string] $encodedAdministratorPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes([string]::Join('', @([char[]]('{0}AdministratorPassword' -f $administratorPassword) | % { '{0}{1}' -f $_, [char]0x00 })))),
+    [string] $encodedAdministratorPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(('{0}AdministratorPassword' -f $administratorPassword))),
+    [string] $encodedAutoLogonPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(('{0}Password' -f $administratorPassword))),
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
@@ -274,7 +275,7 @@ function New-UnattendFile {
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
         <Password>
-          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
+          <Value>$(if ($obfuscatePassword) { $encodedAutoLogonPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
           <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </Password>
         <Enabled>true</Enabled>
