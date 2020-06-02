@@ -27,7 +27,14 @@ function New-UnattendFile {
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
     [string] $administratorPassword = (New-Password),
     [string] $encodedAdministratorPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(('{0}AdministratorPassword' -f $administratorPassword))),
-    [string] $encodedAutoLogonPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(('{0}Password' -f $administratorPassword))),
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-autologon-logoncount
+    [int] $autoLogonCount = 2,
+    [switch] $autoLogonEnabled = ($autoLogonCount -gt 0),
+    [string] $autoLogonUsername = 'Administrator',
+    [string] $autoLogonDomain = $null,
+    [string] $autoLogonPassword = $administratorPassword,
+    [string] $encodedAutoLogonPassword = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes(('{0}Password' -f $autoLogonPassword))),
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-productkey
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-userdata-productkey
@@ -274,12 +281,14 @@ function New-UnattendFile {
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
+        $(if ($autoLogonDomain) { ('<Domain>{0}</Domain>' -f $autoLogonDomain) } else { '<Domain />' })
+        <Username>$autoLogonUsername</Username>
         <Password>
-          <Value>$(if ($obfuscatePassword) { $encodedAutoLogonPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
+          <Value>$(if ($obfuscatePassword) { $encodedAutoLogonPassword } else { ('<![CDATA[{0}]]>' -f $autoLogonPassword) })</Value>
           <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </Password>
-        <Enabled>true</Enabled>
-        <Username>Administrator</Username>
+        <Enabled>$(if ($autoLogonEnabled) { 'true' } else { 'false' })</Enabled>
+        <LogonCount>$autoLogonCount</LogonCount>
       </AutoLogon>
       <OOBE>
         <HideEULAPage>$(if ($hideEULAPage) { 'true' } else { 'false' })</HideEULAPage>
@@ -342,7 +351,7 @@ function New-UnattendFile {
           }
         );
         foreach ($scSub in $scSubs) {
-          $se = $unattend.CreateElement($scSub['name']);
+          $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
           $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
           $sc.AppendChild($se) | Out-Null;
         }
