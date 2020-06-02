@@ -145,6 +145,11 @@
             -nodhcp    - Prevents the use of DHCP to obtain the target IP address.
             -newkey    - Specifies that a new encryption key should be generated for the connection.
 
+    .PARAMETER EnableEms
+        Configures the VHD(X) being created to enable Emergency Management Services.
+        https://en.wikipedia.org/wiki/Emergency_Management_Services
+        https://docs.microsoft.com/en-us/azure/virtual-machines/troubleshooting/serial-console-windows
+
     .PARAMETER DismPath
         Full Path to an alternative version of the Dism.exe tool. The default is the current OS version.
 
@@ -335,6 +340,12 @@ Convert-WindowsImage
             "Network"
         )]
         $EnableDebugger = "None",
+
+        [Parameter(ParameterSetName = "DiskLayout")]
+        [Parameter(ParameterSetName = "PartitionStyle")]
+        [Parameter(ParameterSetName = "UI")]
+        [switch]
+        $EnableEms = $false,
 
         [Parameter(ParameterSetName = "DiskLayout")]
         [Parameter(ParameterSetName = "PartitionStyle")]
@@ -684,6 +695,66 @@ Convert-WindowsImage
                 }
             }
         }
+
+        If (Test-Path -Path "Variable:\EnableEms")
+        {
+            #region EmsComPort
+
+            $EmsComPortAttr                   = New-Object System.Management.Automation.ParameterAttribute
+            $EmsComPortAttr.ParameterSetName  = "__AllParameterSets"
+            $EmsComPortAttr.Mandatory         = $false
+
+            $EmsComPortValidator              = New-Object System.Management.Automation.ValidateRangeAttribute(
+                                                1,
+                                                10   # Is that a good maximum?
+                                             )
+
+            $EmsComPortNotNull                = New-Object System.Management.Automation.ValidateNotNullOrEmptyAttribute
+
+            $EmsComPortAttrCollection         = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
+            $EmsComPortAttrCollection.Add($EmsComPortAttr)
+            $EmsComPortAttrCollection.Add($EmsComPortValidator)
+            $EmsComPortAttrCollection.Add($EmsComPortNotNull)
+
+            $EmsComPort                       = New-Object System.Management.Automation.RuntimeDefinedParameter(
+                                                "EmsComPort",
+                                                [UInt16],
+                                                $EmsComPortAttrCollection
+                                             )
+
+            # By default, use COM1
+            $EmsComPort.Value                 = 1
+            $parameterDictionary.Add("EmsComPort", $EmsComPort)
+            #endregion EmsComPort
+
+            #region EmsBaudRate
+            $EmsBaudRateAttr                  = New-Object System.Management.Automation.ParameterAttribute
+            $EmsBaudRateAttr.ParameterSetName = "__AllParameterSets"
+            $EmsBaudRateAttr.Mandatory        = $false
+
+            $EmsBaudRateValidator             = New-Object System.Management.Automation.ValidateSetAttribute(
+                                                9600, 19200,38400, 57600, 115200
+                                             )
+
+            $EmsBaudRateNotNull               = New-Object System.Management.Automation.ValidateNotNullOrEmptyAttribute
+
+            $EmsBaudRateAttrCollection        = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
+            $EmsBaudRateAttrCollection.Add($EmsBaudRateAttr)
+            $EmsBaudRateAttrCollection.Add($EmsBaudRateValidator)
+            $EmsBaudRateAttrCollection.Add($EmsBaudRateNotNull)
+
+            $EmsBaudRate                      = New-Object System.Management.Automation.RuntimeDefinedParameter(
+                                                 "EmsBaudRate",
+                                                 [UInt32],
+                                                 $EmsBaudRateAttrCollection
+                                             )
+
+            # By default, use 115,200.
+            $EmsBaudRate.Value                = 115200
+            $parameterDictionary.Add("EmsBaudRate", $EmsBaudRate)
+            #endregion EmsBaudRate
+        }
+
         return $parameterDictionary
     }
 
@@ -2202,6 +2273,33 @@ You can use the fields below to configure the VHD or VHDX that you want to creat
                                     $bcdEditArguments = @("/store $($bcdStore)") + $bcdEditArgs
 
                                     Start-Executable -Executable "BCDEDIT.EXE" -Arguments $bcdEditArguments
+                                }
+                            }
+                        }
+
+                      # Are we turning Emergency Management Services (serial console) on?
+                        If ($EnableEms)
+                        {
+                            $bcdStores = @(
+                                "$($systemDrive)\boot\bcd",
+                                "$($systemDrive)\efi\microsoft\boot\bcd"
+                            )
+
+                            Foreach ($bcdStore In $bcdStores)
+                            {
+                                If (Test-Path -Path $bcdStore)
+                                {
+                                    Write-Verbose -Message "Turning EMS on in the $VhdFormat for $bcdStore..."
+
+                                    Start-Executable -Executable "BCDEDIT.EXE" -Arguments (
+                                        "/store $($bcdStore)",
+                                        "/ems `{default`} on"
+                                    )
+
+                                    Start-Executable -Executable "BCDEDIT.EXE" -Arguments (
+                                        "/store $($bcdStore)",
+                                        "/emssettings EMSPORT:$($EmsComPort.Value) EMSBAUDRATE:$($EmsBaudRate.Value)"
+                                    )
                                 }
                             }
                         }
