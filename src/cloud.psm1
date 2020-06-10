@@ -574,20 +574,22 @@ function New-CloudInstanceFromImageExport {
             Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant) -severity 'debug';
           }
         }
-        try {
-          $azVM = (Set-AzVMOperatingSystem `
-            -VM $azVM `
-            -Windows `
-            -ComputerName $targetInstanceName `
-            -ProvisionVMAgent:(-not ($disablePlatformAgent)) `
-            -EnableAutoUpdate:(-not ($disablePlatformAgent)));
-          $azVM.OSProfile.AllowExtensionOperations = (-not ($disablePlatformAgent));
-          #$azVM.OSProfile.WindowsConfiguration.ProvisionVMAgent = (-not ($disablePlatformAgent));
-          Write-Log -message ('{0} :: instance os configuration operation for instance: {1}, with platform agent: {2}, in resource group: {3}, in region: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $(if ($disablePlatformAgent) { 'disabled' } else { 'enabled' }), $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
-        } catch {
-          Write-Log -message ('{0} :: instance os configuration operation for instance: {1}, with platform agent: {2}, in resource group: {3}, in region: {4}, threw exception: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $(if ($disablePlatformAgent) { 'disabled' } else { 'enabled' }), $targetResourceGroupName, $targetResourceRegion, $_.Exception.Message) -severity 'error';
-          if ($_.Exception.InnerException) {
-            Write-Log -message ('{0} :: instance os configuration operation for instance: {1}, with platform agent: {2}, in resource group: {3}, in region: {4}, threw inner exception: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $(if ($disablePlatformAgent) { 'disabled' } else { 'enabled' }), $targetResourceGroupName, $targetResourceRegion, $_.Exception.InnerException.Message) -severity 'error';
+        if ($disablePlatformAgent) {
+          try {
+            #$azVM = (Set-AzVMOperatingSystem `
+            #  -VM $azVM `
+            #  -Windows `
+            #  -ComputerName $targetInstanceName `
+            #  -ProvisionVMAgent:$false `
+            #  -EnableAutoUpdate:$false);
+            $azVM.OSProfile.AllowExtensionOperations = $false;
+            $azVM.OSProfile.WindowsConfiguration.ProvisionVMAgent = $false;
+            Write-Log -message ('{0} :: instance os configuration operation for instance: {1}, with platform agent: {2}, in resource group: {3}, in region: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $(if ($disablePlatformAgent) { 'disabled' } else { 'enabled' }), $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
+          } catch {
+            Write-Log -message ('{0} :: instance os configuration operation for instance: {1}, with platform agent: {2}, in resource group: {3}, in region: {4}, threw exception: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $(if ($disablePlatformAgent) { 'disabled' } else { 'enabled' }), $targetResourceGroupName, $targetResourceRegion, $_.Exception.Message) -severity 'error';
+            if ($_.Exception.InnerException) {
+              Write-Log -message ('{0} :: instance os configuration operation for instance: {1}, with platform agent: {2}, in resource group: {3}, in region: {4}, threw inner exception: {5}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $(if ($disablePlatformAgent) { 'disabled' } else { 'enabled' }), $targetResourceGroupName, $targetResourceRegion, $_.Exception.InnerException.Message) -severity 'error';
+            }
           }
         }
         try {
