@@ -156,6 +156,11 @@ function New-UnattendFile {
 
     [switch] $obfuscatePassword = $false,
 
+    [ValidateSet('Audit', 'OOBE')]
+    [string] $resealMode = 'OOBE',
+
+    [switch] $resealShutdown = $false,
+
     [xml] $template = @"
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
@@ -279,6 +284,12 @@ function New-UnattendFile {
     </component> 
   </settings>
   <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <Reseal>
+        <ForceShutdownNow>$(if ($resealShutdown) { 'true' } else { 'false' })</ForceShutdownNow>
+        <Mode>$resealMode</Mode>
+      </Reseal>
+    </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
         $(if ($autoLogonDomain) { ('<Domain>{0}</Domain>' -f $autoLogonDomain) } else { '<Domain />' })
