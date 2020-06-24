@@ -598,8 +598,21 @@ function New-CloudInstanceFromImageExport {
             -Location $targetResourceRegion `
             -Tag $targetInstanceTags `
             -DisableBginfoExtension:$disableBackgroundInfo `
-            -VM $azVM);
-          Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
+            -VM $azVM `
+            -ErrorAction SilentlyContinue `
+            -ErrorVariable 'newAzVmError');
+          if (($newAzVmError) -and ($newAzVmError.Exception) -and ($newAzVmError.Exception.Message)) {
+            switch -Regex ($newAzVmError.Exception.Message) {
+              'has not reported status for VM agent or extensions' {
+                Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, completed without vm-agent or extension status reporting' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
+              }
+              default {
+                Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, completed with error(s): {6}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion, $newAzVmError.Exception.Message) -severity 'warn';
+              }
+            }
+          } else {
+            Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
+          }
         } catch {
           Write-Log -message ('{0} :: instance create operation for instance: {1}, with machine variant: {2}, using os disk: {3}, in resource group: {4}, in region: {5}, threw exception: {6}' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant, $azDisk.Id.Split('/')[-1], $targetResourceGroupName, $targetResourceRegion, $_.Exception.Message) -severity 'error';
           if ($_.Exception.InnerException) {
