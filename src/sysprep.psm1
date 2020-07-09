@@ -23,6 +23,10 @@ function New-UnattendFile {
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-computername
     [string] $computerName = '*',
+    [string] $auditComputerName = $computerName,
+
+    [bool] $auditComputerNameMustReboot = ($auditComputerName -ne $computerName),
+    [bool] $extendOsPartition = $true,
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-useraccounts-administratorpassword
     [string] $administratorPassword = (New-Password),
@@ -163,9 +167,24 @@ function New-UnattendFile {
     [switch] $obfuscatePassword = $false,
 
     [ValidateSet('Audit', 'OOBE')]
-    [string] $resealMode = 'OOBE',
+    [string] $generalizeMode = 'OOBE',
+    [switch] $generalizeShutdown = $false,
+    [bool] $generalizeOmit = $true,
 
-    [switch] $resealShutdown = $false,
+    [ValidateSet('Audit', 'OOBE')]
+    [string] $auditSystemResealMode = 'OOBE',
+    [switch] $auditSystemResealShutdown = $false,
+    [bool] $auditSystemResealOmit = $true,
+
+    [ValidateSet('Audit', 'OOBE')]
+    [string] $auditUserResealMode = 'OOBE',
+    [switch] $auditUserResealShutdown = $false,
+    [bool] $auditUserResealOmit = (-not $generalizeOmit),
+
+    [ValidateSet('Audit', 'OOBE')]
+    [string] $oobeSystemResealMode = 'OOBE',
+    [switch] $oobeSystemResealShutdown = $false,
+    [bool] $oobeSystemResealOmit = $true,
 
     [xml] $template = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -292,12 +311,9 @@ function New-UnattendFile {
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <ExtendOSPartition>
-        <Extend>true</Extend>
+        <Extend>$(if ($extendOsPartition) { 'true' } else { 'false' })</Extend>
       </ExtendOSPartition>
-      <Reseal>
-        <ForceShutdownNow>$(if ($resealShutdown) { 'true' } else { 'false' })</ForceShutdownNow>
-        <Mode>$resealMode</Mode>
-      </Reseal>
+      $(if (-not $oobeSystemResealOmit) { ('<Reseal><ForceShutdownNow>{0}</ForceShutdownNow><Mode>{1}</Mode></Reseal>' -f $(if ($oobeSystemResealShutdown) { 'true' } else { 'false' }), $oobeSystemResealMode) })
     </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AutoLogon>
@@ -333,31 +349,47 @@ function New-UnattendFile {
     </component>
   </settings>
   <settings pass="auditSystem">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <AutoLogon>
+        $(if ($autoLogonDomain) { ('<Domain>{0}</Domain>' -f $autoLogonDomain) } else { '<Domain />' })
+        <Username>$autoLogonUsername</Username>
+        <Password>
+          <Value>$(if ($obfuscatePassword) { $encodedAutoLogonPassword } else { ('<![CDATA[{0}]]>' -f $autoLogonPassword) })</Value>
+          <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
+        </Password>
+        <Enabled>$(if ($autoLogonEnabled) { 'true' } else { 'false' })</Enabled>
+        <LogonCount>$autoLogonCount</LogonCount>
+      </AutoLogon>
+      <UserAccounts>
+        <AdministratorPassword>
+          <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
+          <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
+        </AdministratorPassword>
+      </UserAccounts>
+      <DisableAutoDaylightTimeSet>$(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })</DisableAutoDaylightTimeSet>
+    </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <Reseal>
-        <ForceShutdownNow>true</ForceShutdownNow>
-        <Mode>Audit</Mode>
-      </Reseal>
+      <AuditComputerName>
+        <MustReboot>$(if ($auditComputerNameMustReboot) { 'true' } else { 'false' })</MustReboot>
+        <Name>$auditComputerName</Name>
+      </AuditComputerName>
+      <ExtendOSPartition>
+        <Extend>$(if ($extendOsPartition) { 'true' } else { 'false' })</Extend>
+      </ExtendOSPartition>
+      $(if (-not $auditSystemResealOmit) { ('<Reseal><ForceShutdownNow>{0}</ForceShutdownNow><Mode>{1}</Mode></Reseal>' -f $(if ($auditSystemResealShutdown) { 'true' } else { 'false' }), $auditSystemResealMode) })
     </component>
   </settings>
   <settings pass="auditUser">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <RegisteredOrganization>$registeredOrganization</RegisteredOrganization>
+      <RegisteredOwner>$registeredOwner</RegisteredOwner>
+    </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <RunSynchronous>
-        <RunSynchronousCommand wcm:action="add">
-          <Credentials>
-            $(if ($autoLogonDomain) { ('<Domain>{0}</Domain>' -f $autoLogonDomain) } else { '<Domain />' })
-            <Password>
-              <Value>$(if ($obfuscatePassword) { $encodedAutoLogonPassword } else { ('<![CDATA[{0}]]>' -f $autoLogonPassword) })</Value>
-              <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
-            </Password>
-            <Username>$autoLogonUsername</Username>
-          </Credentials>
-          <Description>MySynchCommand1</Description>
-          <Order>1</Order>
-          <Path>\\network\server\share\filename</Path>
-          <WillReboot>OnRequest</WillReboot>
-        </RunSynchronousCommand>
-      </RunSynchronous>
+      $(if (-not $auditUserResealOmit) {
+        ('<Reseal><ForceShutdownNow>{0}</ForceShutdownNow><Mode>{1}</Mode></Reseal>' -f $(if ($auditUserResealShutdown) { 'true' } else { 'false' }), $auditUserResealMode)
+      } elseif (-not $generalizeOmit) {
+        ('<Generalize><ForceShutdownNow>{0}</ForceShutdownNow><Mode>{1}</Mode></Generalize>' -f $(if ($generalizeShutdown) { 'true' } else { 'false' }), $generalizeMode)
+      })
     </component>
   </settings>
 </unattend>
