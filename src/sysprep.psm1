@@ -328,15 +328,15 @@ function New-UnattendFile {
       </AutoLogon>
       <OOBE>
         <HideEULAPage>$(if ($hideEULAPage) { 'true' } else { 'false' })</HideEULAPage>
-        <HideOEMRegistrationScreen>$(if ($hideOEMRegistrationScreen) { 'true' } else { 'false' })</HideOEMRegistrationScreen>
-        <HideOnlineAccountScreens>$(if ($hideOnlineAccountScreens) { 'true' } else { 'false' })</HideOnlineAccountScreens>
+        $(if ($os -ne 'Windows 7') { ('<HideOEMRegistrationScreen>{0}</HideOEMRegistrationScreen>' -f $(if ($hideOEMRegistrationScreen) { 'true' } else { 'false' })) })
+        $(if ($os -ne 'Windows 7') { ('<HideOnlineAccountScreens>{0}</HideOnlineAccountScreens>' -f $(if ($hideOnlineAccountScreens) { 'true' } else { 'false' })) })
         <HideWirelessSetupInOOBE>$(if ($hideWirelessSetupInOOBE) { 'true' } else { 'false' })</HideWirelessSetupInOOBE>
         <NetworkLocation>$networkLocation</NetworkLocation>
         <SkipUserOOBE>$(if ($skipUserOOBE) { 'true' } else { 'false' })</SkipUserOOBE>
         <SkipMachineOOBE>$(if ($skipMachineOOBE) { 'true' } else { 'false' })</SkipMachineOOBE>
         <ProtectYourPC>$protectYourPC</ProtectYourPC>
       </OOBE>
-      <ShowWindowsLive>$(if ($showWindowsLive) { 'true' } else { 'false' })</ShowWindowsLive>
+      $(if ($os -eq 'Windows 7') { ('<ShowWindowsLive>{0}</ShowWindowsLive>' -f $(if ($showWindowsLive) { 'true' } else { 'false' })) })
       <UserAccounts>
         <AdministratorPassword>
           <Value>$(if ($obfuscatePassword) { $encodedAdministratorPassword } else { ('<![CDATA[{0}]]>' -f $administratorPassword) })</Value>
@@ -345,7 +345,7 @@ function New-UnattendFile {
       </UserAccounts>
       <RegisteredOrganization>$registeredOrganization</RegisteredOrganization>
       <RegisteredOwner>$registeredOwner</RegisteredOwner>
-      <DisableAutoDaylightTimeSet>$(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })</DisableAutoDaylightTimeSet>
+      $(if ($os -ne 'Windows 7') { ('<DisableAutoDaylightTimeSet>{0}</DisableAutoDaylightTimeSet>' -f $(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })) })
     </component>
   </settings>
   <settings pass="auditSystem">
@@ -366,7 +366,7 @@ function New-UnattendFile {
           <PlainText>$(if ($obfuscatePassword) { 'false' } else { 'true' })</PlainText>
         </AdministratorPassword>
       </UserAccounts>
-      <DisableAutoDaylightTimeSet>$(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })</DisableAutoDaylightTimeSet>
+      $(if ($os -ne 'Windows 7') { ('<DisableAutoDaylightTimeSet>{0}</DisableAutoDaylightTimeSet>' -f $(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })) })
     </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AuditComputerName>
@@ -404,145 +404,91 @@ function New-UnattendFile {
 
       $nsmgr = New-Object System.Xml.XmlNamespaceManager($unattend.NameTable);
       $nsmgr.AddNamespace('ns', 'urn:schemas-microsoft-com:unattend');
-      $oobeSystemMicrosoftWindowsShellSetup = $unattend.SelectSingleNode("//ns:settings[@pass='oobeSystem']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
       $specializeMicrosoftWindowsShellSetup = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
-      $auditUserMicrosoftWindowsDeployment = $unattend.SelectSingleNode("//ns:settings[@pass='auditUser']/ns:component[@name='Microsoft-Windows-Deployment']", $nsmgr);
-
-      # add oobeSystem synchronous commands
-      # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-firstlogoncommands-synchronouscommand
-      $xmlCommandList = $unattend.CreateElement('FirstLogonCommands', $unattend.DocumentElement.NamespaceURI);
-      $order = 0;
-      foreach ($command in @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' })) {
-        $sc = $unattend.CreateElement('SynchronousCommand', $unattend.DocumentElement.NamespaceURI);
-        $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
-        $scSubs = @(
-          @{
-            'name' = 'Order';
-            'value' = ++$order
-          },
-          @{
-            'name' = 'Description';
-            'value' = $command['Description']
-          },
-          @{
-            'name' = 'CommandLine';
-            'value' = $command['CommandLine']
-          },
-          @{
+      $commandPlacements = @(
+        # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-firstlogoncommands-synchronouscommand
+        @{
+          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' });
+          'list' = 'FirstLogonCommands';
+          'item' = 'SynchronousCommand';
+          'command' = 'CommandLine';
+          'option' = @{
             'name' = 'RequiresUserInput';
-            'value' = $(if ($command['RequiresUserInput']) { $command['RequiresUserInput'] } else { 'false' })
-          }
-        );
-        foreach ($scSub in $scSubs) {
-          $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
-          $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
-          $sc.AppendChild($se) | Out-Null;
-        }
-        $xmlCommandList.AppendChild($sc) | Out-Null;
-      }
-      $oobeSystemMicrosoftWindowsShellSetup.AppendChild($xmlCommandList) | Out-Null;
-
-      # add oobeSystem asynchronous commands
-      $xmlCommandList = $unattend.CreateElement('LogonCommands', $unattend.DocumentElement.NamespaceURI);
-      $order = 0;
-      foreach ($command in @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' })) {
-        $sc = $unattend.CreateElement('AsynchronousCommand', $unattend.DocumentElement.NamespaceURI);
-        $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
-        $scSubs = @(
-          @{
-            'name' = 'Order';
-            'value' = ++$order
-          },
-          @{
-            'name' = 'Description';
-            'value' = $command['Description']
-          },
-          @{
-            'name' = 'CommandLine';
-            'value' = $command['CommandLine']
-          }
-        );
-        foreach ($scSub in $scSubs) {
-          $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
-          $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
-          $sc.AppendChild($se) | Out-Null;
-        }
-        $xmlCommandList.AppendChild($sc) | Out-Null;
-      }
-      $oobeSystemMicrosoftWindowsShellSetup.AppendChild($xmlCommandList) | Out-Null;
-
-      # add auditUser synchronous commands
-      # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runsynchronous-runsynchronouscommand
-      $xmlCommandList = $unattend.CreateElement('RunSynchronous', $unattend.DocumentElement.NamespaceURI);
-      $order = 0;
-      foreach ($command in @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' })) {
-        $sc = $unattend.CreateElement('RunSynchronousCommand', $unattend.DocumentElement.NamespaceURI);
-        $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
-        $scSubs = @(
-          @{
-            'name' = 'Order';
-            'value' = ++$order
-          },
-          @{
-            'name' = 'Description';
-            'value' = $command['Description']
-          },
-          @{
-            'name' = 'Path';
-            'value' = $command['CommandLine']
-          },
-          @{
+            'default' = 'false'
+          };
+          'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='oobeSystem']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr)
+        },
+        # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-logoncommands-asynchronouscommand
+        @{
+          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' });
+          'list' = 'LogonCommands';
+          'item' = 'AsynchronousCommand';
+          'command' = 'CommandLine';
+          'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='oobeSystem']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr)
+        },
+        # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runsynchronous-runsynchronouscommand
+        @{
+          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' });
+          'list' = 'RunSynchronous';
+          'item' = 'RunSynchronousCommand';
+          'command' = 'Path';
+          'option' = @{
             'name' = 'WillReboot';
-            'value' = $(if ($command['WillReboot']) { $command['WillReboot'] } else { 'Never' })
-          }
-        );
-        foreach ($scSub in $scSubs) {
-          $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
-          $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
-          $sc.AppendChild($se) | Out-Null;
+            'default' = 'Never'
+          };
+          'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='auditUser']/ns:component[@name='Microsoft-Windows-Deployment']", $nsmgr)
+        },
+        # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runasynchronous-runasynchronouscommand
+        @{
+          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' });
+          'list' = 'RunAsynchronous';
+          'item' = 'RunAsynchronousCommand';
+          'command' = 'Path';
+          'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='auditUser']/ns:component[@name='Microsoft-Windows-Deployment']", $nsmgr)
         }
-        $xmlCommandList.AppendChild($sc) | Out-Null;
-      }
-      $auditUserMicrosoftWindowsDeployment.AppendChild($xmlCommandList) | Out-Null;
-
-      # add auditUser asynchronous commands
-      # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runasynchronous-runasynchronouscommand
-      $xmlCommandList = $unattend.CreateElement('RunAsynchronous', $unattend.DocumentElement.NamespaceURI);
-      $order = 0;
-      foreach ($command in @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' })) {
-        $sc = $unattend.CreateElement('RunAsynchronousCommand', $unattend.DocumentElement.NamespaceURI);
-        $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
-        $scSubs = @(
-          @{
-            'name' = 'Order';
-            'value' = ++$order
-          },
-          @{
-            'name' = 'Description';
-            'value' = $command['Description']
-          },
-          @{
-            'name' = 'Path';
-            'value' = $command['CommandLine']
+      );
+      foreach ($commandPlacement in $commandPlacements) {
+        if ($commandPlacement.commands -and $commandPlacement.commands.Length) {
+          $xmlCommandList = $unattend.CreateElement($commandPlacement.list, $unattend.DocumentElement.NamespaceURI);
+          $order = 0;
+          foreach ($command in $componentCommands) {
+            $sc = $unattend.CreateElement($commandPlacement.item, $unattend.DocumentElement.NamespaceURI);
+            $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+            $scSubs = @(
+              @{
+                'name' = 'Order';
+                'value' = ++$order
+              },
+              @{
+                'name' = 'Description';
+                'value' = $command['Description']
+              },
+              @{
+                'name' = $commandPlacement.command;
+                'value' = $command['CommandLine']
+              },
+              $(
+                if ($commandPlacement.option) {
+                  @{
+                    'name' = $commandPlacement.option.name;
+                    'value' = $(if ($command[$commandPlacement.option.name]) { $command[$commandPlacement.option.name] } else { $commandPlacement.option.default })
+                  }
+                } else {
+                  $false
+                }
+              )
+            );
+            foreach ($scSub in @($scSubs | ? { $_ })) {
+              $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
+              $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
+              $sc.AppendChild($se) | Out-Null;
+            }
+            $xmlCommandList.AppendChild($sc) | Out-Null;
           }
-        );
-        foreach ($scSub in $scSubs) {
-          $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
-          $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
-          $sc.AppendChild($se) | Out-Null;
+          $commandPlacement.parent.AppendChild($xmlCommandList) | Out-Null;
         }
-        $xmlCommandList.AppendChild($sc) | Out-Null;
       }
-      $auditUserMicrosoftWindowsDeployment.AppendChild($xmlCommandList) | Out-Null;
-
-      if ($os -eq 'Windows 7') {
-        $oobeNode = $oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:OOBE', $nsmgr);
-        $oobeNode.RemoveChild($oobeNode.SelectSingleNode('./ns:HideOEMRegistrationScreen', $nsmgr)) | Out-Null;
-        $oobeNode.RemoveChild($oobeNode.SelectSingleNode('./ns:HideOnlineAccountScreens', $nsmgr)) | Out-Null;
-        $oobeSystemMicrosoftWindowsShellSetup.RemoveChild($oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:DisableAutoDaylightTimeSet', $nsmgr)) | Out-Null;
-      } else {
-        $oobeSystemMicrosoftWindowsShellSetup.RemoveChild($oobeSystemMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ShowWindowsLive', $nsmgr)) | Out-Null;
-      }
+      # todo: move logic below into template
       if (($os -ne 'Windows 7') -or (($os -eq 'Windows 7') -and (-not $enableRDP))) {
         $specializeSettingsPass = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']", $nsmgr);
         $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Microsoft-Windows-TerminalServices-LocalSessionManager']", $nsmgr)) | Out-Null;
