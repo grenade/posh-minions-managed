@@ -459,7 +459,7 @@ function New-UnattendFile {
         if ($commandPlacement.commands -and $commandPlacement.commands.Length) {
           $xmlCommandList = $unattend.CreateElement($commandPlacement.list, $unattend.DocumentElement.NamespaceURI);
           $order = 0;
-          foreach ($command in $componentCommands) {
+          foreach ($command in $commandPlacement.commands) {
             $xmlCommandElement = $unattend.CreateElement($commandPlacement.item, $unattend.DocumentElement.NamespaceURI);
             $xmlCommandElement.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
             $xmlCommandElementChildren = @(
