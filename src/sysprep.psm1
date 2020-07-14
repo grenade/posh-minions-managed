@@ -408,6 +408,8 @@ function New-UnattendFile {
       $commandPlacements = @(
         # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-firstlogoncommands-synchronouscommand
         @{
+          'pass' = 'oobeSystem';
+          'synchronicity' = 'synchronous';
           'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' });
           'list' = 'FirstLogonCommands';
           'item' = 'SynchronousCommand';
@@ -420,6 +422,8 @@ function New-UnattendFile {
         },
         # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-logoncommands-asynchronouscommand
         @{
+          'pass' = 'oobeSystem';
+          'synchronicity' = 'asynchronous';
           'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' });
           'list' = 'LogonCommands';
           'item' = 'AsynchronousCommand';
@@ -428,6 +432,8 @@ function New-UnattendFile {
         },
         # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runsynchronous-runsynchronouscommand
         @{
+          'pass' = 'auditUser';
+          'synchronicity' = 'synchronous';
           'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' });
           'list' = 'RunSynchronous';
           'item' = 'RunSynchronousCommand';
@@ -440,6 +446,8 @@ function New-UnattendFile {
         },
         # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runasynchronous-runasynchronouscommand
         @{
+          'pass' = 'auditUser';
+          'synchronicity' = 'asynchronous';
           'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' });
           'list' = 'RunAsynchronous';
           'item' = 'RunAsynchronousCommand';
@@ -452,9 +460,9 @@ function New-UnattendFile {
           $xmlCommandList = $unattend.CreateElement($commandPlacement.list, $unattend.DocumentElement.NamespaceURI);
           $order = 0;
           foreach ($command in $componentCommands) {
-            $sc = $unattend.CreateElement($commandPlacement.item, $unattend.DocumentElement.NamespaceURI);
-            $sc.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
-            $scSubs = @(
+            $xmlCommandElement = $unattend.CreateElement($commandPlacement.item, $unattend.DocumentElement.NamespaceURI);
+            $xmlCommandElement.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+            $xmlCommandElementChildren = @(
               @{
                 'name' = 'Order';
                 'value' = ++$order
@@ -466,26 +474,26 @@ function New-UnattendFile {
               @{
                 'name' = $commandPlacement.command;
                 'value' = $command['CommandLine']
-              },
-              $(
-                if ($commandPlacement.option) {
-                  @{
-                    'name' = $commandPlacement.option.name;
-                    'value' = $(if ($command[$commandPlacement.option.name]) { $command[$commandPlacement.option.name] } else { $commandPlacement.option.default })
-                  }
-                } else {
-                  $false
-                }
-              )
+              }
             );
-            foreach ($scSub in @($scSubs | ? { $_ })) {
-              $se = $unattend.CreateElement($scSub['name'], $unattend.DocumentElement.NamespaceURI);
-              $se.AppendChild($unattend.CreateTextNode($scSub['value'])) | Out-Null;
-              $sc.AppendChild($se) | Out-Null;
+            if ($commandPlacement.option -and $commandPlacement.option.name -and $commandPlacement.option.name) {
+              $xmlCommandElementChildren += @{
+                'name' = $commandPlacement.option.name;
+                'value' = $(if ($command[$commandPlacement.option.name]) { $command[$commandPlacement.option.name] } else { $commandPlacement.option.default })
+              };
             }
-            $xmlCommandList.AppendChild($sc) | Out-Null;
+            foreach ($xmlCommandElementChild in $xmlCommandElementChildren) {
+              $xmlCommandElementChildElement = $unattend.CreateElement($xmlCommandElementChild['name'], $unattend.DocumentElement.NamespaceURI);
+              $xmlCommandElementChildElement.AppendChild($unattend.CreateTextNode($xmlCommandElementChild['value'])) | Out-Null;
+              $xmlCommandElement.AppendChild($xmlCommandElementChildElement) | Out-Null;
+            }
+            $xmlCommandList.AppendChild($xmlCommandElement) | Out-Null;
+            Write-Log -message ('{0} :: {1} command added to {2} settings pass ({3}/{4}): {5}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $command['Description']) -severity 'debug';
           }
           $commandPlacement.parent.AppendChild($xmlCommandList) | Out-Null;
+          Write-Log -message ('{0} :: {1} added to {2} settings pass' -f $($MyInvocation.MyCommand.Name), $commandPlacement.list, $commandPlacement.pass) -severity 'debug';
+        } else {
+          Write-Log -message ('{0} :: no {1} commands detected for {2} settings pass' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $commandPlacement.pass) -severity 'debug';
         }
       }
       # todo: move logic below into template
