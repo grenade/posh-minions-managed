@@ -678,14 +678,16 @@ function New-CloudImageFromInstance {
         break;
       }
       'azure' {
-        $azVMStatus = (Get-AzVM `
+        $azVmStatuses = (Get-AzVM `
           -ResourceGroupName $resourceGroupName `
           -Name $instanceName `
-          -Status);
-        if (($azVMStatus) -and ($azVMStatus.Statuses | ? { ($_.Code -eq 'PowerState/running') })) {
+          -Status).Statuses;
+        Write-Log -message ('{0} :: instance: {1}, in resource group: {2}, has status codes: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, ([string]::Join(', ', @($azVmStatuses | % { $_.Code })))) -severity 'debug';
+        if ($azVmStatuses[$azVmStatuses.Count - 1].Code -ne 'PowerState/stopped') {
           $stopOperation = (Stop-AzVM `
             -ResourceGroupName $resourceGroupName `
             -Name $instanceName `
+            -StayProvisioned `
             -Force `
             -ErrorAction SilentlyContinue);
           Write-Log -message ('{0} :: stop operation on instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $stopOperation.Status) -severity 'debug';
