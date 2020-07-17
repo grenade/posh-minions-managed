@@ -683,14 +683,16 @@ function New-CloudImageFromInstance {
           -Name $instanceName `
           -Status).Statuses;
         Write-Log -message ('{0} :: instance: {1}, in resource group: {2}, has status codes: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, ([string]::Join(', ', @($azVmStatuses | % { $_.Code })))) -severity 'debug';
-        if ($azVmStatuses[$azVmStatuses.Count - 1].Code -ne 'PowerState/stopped') {
+        # regardless of the instance current state (running, stopped, etc.), it must be explicitly powered off using Stop-AzVM or the subsequent generalize operation will fail
+        try {
           $stopOperation = (Stop-AzVM `
             -ResourceGroupName $resourceGroupName `
             -Name $instanceName `
-            -StayProvisioned `
             -Force `
             -ErrorAction SilentlyContinue);
           Write-Log -message ('{0} :: stop operation on instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $stopOperation.Status) -severity 'debug';
+        } catch {
+          Write-Log -message ('{0} :: stop operation on instance: {1}, in resource group: {2}, failed: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $_.Exception.Message) -severity 'error';
         }
         $generalizeOperation = (Set-AzVm `
           -ResourceGroupName $resourceGroupName `
