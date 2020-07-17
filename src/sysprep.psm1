@@ -488,7 +488,7 @@ function New-UnattendFile {
               $xmlCommandElement.AppendChild($xmlCommandElementChildElement) | Out-Null;
             }
             $xmlCommandList.AppendChild($xmlCommandElement) | Out-Null;
-            Write-Log -message ('{0} :: {1} command added with order: {2}, to {3} settings pass ({4}/{5}): {6}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $order, $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $command['Description']) -severity 'debug';
+            Write-Log -message ('{0} :: {1} command added to {2} settings pass ({3}/{4}[{5}]): {6}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $order, $command['Description']) -severity 'debug';
           }
           $commandPlacement.parent.AppendChild($xmlCommandList) | Out-Null;
           Write-Log -message ('{0} :: {1} added to {2} settings pass' -f $($MyInvocation.MyCommand.Name), $commandPlacement.list, $commandPlacement.pass) -severity 'debug';
