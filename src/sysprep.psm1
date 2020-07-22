@@ -410,7 +410,7 @@ function New-UnattendFile {
         @{
           'pass' = 'oobeSystem';
           'synchronicity' = 'synchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' });
+          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' } | Sort-Object -Property 'Priority');
           'list' = 'FirstLogonCommands';
           'item' = 'SynchronousCommand';
           'command' = 'CommandLine';
@@ -424,7 +424,7 @@ function New-UnattendFile {
         @{
           'pass' = 'oobeSystem';
           'synchronicity' = 'asynchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' });
+          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' } | Sort-Object -Property 'Priority');
           'list' = 'LogonCommands';
           'item' = 'AsynchronousCommand';
           'command' = 'CommandLine';
@@ -434,7 +434,7 @@ function New-UnattendFile {
         @{
           'pass' = 'auditUser';
           'synchronicity' = 'synchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' });
+          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' } | Sort-Object -Property 'Priority');
           'list' = 'RunSynchronous';
           'item' = 'RunSynchronousCommand';
           'command' = 'Path';
@@ -448,7 +448,7 @@ function New-UnattendFile {
         @{
           'pass' = 'auditUser';
           'synchronicity' = 'asynchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' });
+          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' } | Sort-Object -Property 'Priority');
           'list' = 'RunAsynchronous';
           'item' = 'RunAsynchronousCommand';
           'command' = 'Path';
