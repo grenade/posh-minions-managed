@@ -147,16 +147,18 @@ function New-UnattendFile {
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runasynchronous
     [hashtable[]] $commands = @(
       @{
-        'Description' = 'say hello in FirstLogonCommands';
-        'CommandLine' = 'echo "hello beautiful world"';
-        'Pass' = 'oobeSystem';
-        'Synchronicity' = 'Synchronous'
+        'Description'   = 'say hello in FirstLogonCommands';
+        'CommandLine'   = 'echo "hello beautiful world"';
+        'Pass'          = 'oobeSystem';
+        'Synchronicity' = 'Synchronous';
+        'Priority'      = 500
       },
       @{
-        'Description' = 'say goodbye in FirstLogonCommands';
-        'CommandLine' = 'echo "goodbye cruel world"';
-        'Pass' = 'oobeSystem';
-        'Synchronicity' = 'Synchronous'
+        'Description'   = 'say goodbye in FirstLogonCommands';
+        'CommandLine'   = 'echo "goodbye cruel world"';
+        'Pass'          = 'oobeSystem';
+        'Synchronicity' = 'Synchronous';
+        'Priority'      = 501
       }
     ),
 
@@ -410,7 +412,7 @@ function New-UnattendFile {
         @{
           'pass' = 'oobeSystem';
           'synchronicity' = 'synchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' } | Sort-Object -Property 'Priority');
+          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'synchronous' });
           'list' = 'FirstLogonCommands';
           'item' = 'SynchronousCommand';
           'command' = 'CommandLine';
@@ -424,7 +426,7 @@ function New-UnattendFile {
         @{
           'pass' = 'oobeSystem';
           'synchronicity' = 'asynchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' } | Sort-Object -Property 'Priority');
+          'commands' = @($commands | ? { $_.Pass -ieq 'oobeSystem' -and $_.Synchronicity -ieq 'asynchronous' });
           'list' = 'LogonCommands';
           'item' = 'AsynchronousCommand';
           'command' = 'CommandLine';
@@ -434,7 +436,7 @@ function New-UnattendFile {
         @{
           'pass' = 'auditUser';
           'synchronicity' = 'synchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' } | Sort-Object -Property 'Priority');
+          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'synchronous' });
           'list' = 'RunSynchronous';
           'item' = 'RunSynchronousCommand';
           'command' = 'Path';
@@ -448,7 +450,7 @@ function New-UnattendFile {
         @{
           'pass' = 'auditUser';
           'synchronicity' = 'asynchronous';
-          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' } | Sort-Object -Property 'Priority');
+          'commands' = @($commands | ? { $_.Pass -ieq 'auditUser' -and $_.Synchronicity -ieq 'asynchronous' });
           'list' = 'RunAsynchronous';
           'item' = 'RunAsynchronousCommand';
           'command' = 'Path';
@@ -458,8 +460,9 @@ function New-UnattendFile {
       foreach ($commandPlacement in $commandPlacements) {
         if ($commandPlacement.commands -and $commandPlacement.commands.Length) {
           $xmlCommandList = $unattend.CreateElement($commandPlacement.list, $unattend.DocumentElement.NamespaceURI);
+          $passCommands = @($commandPlacement.commands | Sort-Object -Property 'Priority');
           $order = 0;
-          foreach ($command in $commandPlacement.commands) {
+          foreach ($command in $passCommands) {
             $xmlCommandElement = $unattend.CreateElement($commandPlacement.item, $unattend.DocumentElement.NamespaceURI);
             $xmlCommandElement.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
             $xmlCommandElementChildren = @(
@@ -488,7 +491,7 @@ function New-UnattendFile {
               $xmlCommandElement.AppendChild($xmlCommandElementChildElement) | Out-Null;
             }
             $xmlCommandList.AppendChild($xmlCommandElement) | Out-Null;
-            Write-Log -message ('{0} :: {1} command added to {2} settings pass ({3}/{4}[{5}]): {6}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $order, $command['Description']) -severity 'debug';
+            Write-Log -message ('{0} :: {1} command with priority {2} added to {3} settings pass ({4}/{5}[{6}]): {7}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $command['Priority'], $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $order, $command['Description']) -severity 'debug';
           }
           $commandPlacement.parent.AppendChild($xmlCommandList) | Out-Null;
           Write-Log -message ('{0} :: {1} added to {2} settings pass' -f $($MyInvocation.MyCommand.Name), $commandPlacement.list, $commandPlacement.pass) -severity 'debug';
