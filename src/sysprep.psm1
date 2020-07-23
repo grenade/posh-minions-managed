@@ -460,7 +460,8 @@ function New-UnattendFile {
       foreach ($commandPlacement in $commandPlacements) {
         if ($commandPlacement.commands -and $commandPlacement.commands.Length) {
           $xmlCommandList = $unattend.CreateElement($commandPlacement.list, $unattend.DocumentElement.NamespaceURI);
-          $passCommands = @($commandPlacement.commands | Sort-Object -Property 'Priority');
+          # arrays of hashtables require slightly more complex sorting definitions (see: https://stackoverflow.com/a/37034736/68115)
+          $passCommands = @($commandPlacement.commands | Sort-Object -Property @{ 'Expression' = { $_.Priority }; 'Descending' = $false });
           $order = 0;
           foreach ($command in $passCommands) {
             $xmlCommandElement = $unattend.CreateElement($commandPlacement.item, $unattend.DocumentElement.NamespaceURI);
