@@ -480,7 +480,7 @@ function New-UnattendFile {
                 'value' = $command['CommandLine']
               }
             );
-            if ($commandPlacement.option -and $commandPlacement.option.name -and $commandPlacement.option.name) {
+            if ($commandPlacement.option -and $commandPlacement.option.name -and $commandPlacement.option.default) {
               $xmlCommandElementChildren += @{
                 'name' = $commandPlacement.option.name;
                 'value' = $(if ($command[$commandPlacement.option.name]) { $command[$commandPlacement.option.name] } else { $commandPlacement.option.default })
@@ -492,7 +492,11 @@ function New-UnattendFile {
               $xmlCommandElement.AppendChild($xmlCommandElementChildElement) | Out-Null;
             }
             $xmlCommandList.AppendChild($xmlCommandElement) | Out-Null;
-            Write-Log -message ('{0} :: {1} command with priority {2} added to {3} settings pass ({4}/{5}[{6}]): {7}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $command['Priority'], $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $order, $command['Description']) -severity 'debug';
+            if ($commandPlacement.option -and $commandPlacement.option.name -and $commandPlacement.option.default) {
+              Write-Log -message ('{0} :: {1} command with priority {2} added to {3} settings pass ({4}/{5}[{6}] (with attribute {7}: {8})): {9}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $command['Priority'], $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $order, $commandPlacement.option.name, $(if ($command[$commandPlacement.option.name]) { $command[$commandPlacement.option.name] } else { $commandPlacement.option.default }), $command['Description']) -severity 'debug';
+            } else {
+              Write-Log -message ('{0} :: {1} command with priority {2} added to {3} settings pass ({4}/{5}[{6}]): {7}' -f $($MyInvocation.MyCommand.Name), $commandPlacement.synchronicity, $command['Priority'], $commandPlacement.pass, $commandPlacement.list, $commandPlacement.item, $order, $command['Description']) -severity 'debug';
+            }
           }
           $commandPlacement.parent.AppendChild($xmlCommandList) | Out-Null;
           Write-Log -message ('{0} :: {1} added to {2} settings pass' -f $($MyInvocation.MyCommand.Name), $commandPlacement.list, $commandPlacement.pass) -severity 'debug';
