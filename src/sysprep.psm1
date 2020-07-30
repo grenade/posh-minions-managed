@@ -188,6 +188,26 @@ function New-UnattendFile {
     [switch] $oobeSystemResealShutdown = $false,
     [bool] $oobeSystemResealOmit = $true,
 
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-display-colordepth
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-display-colordepth
+    [ValidateSet(1, 4, 8, 15, 16, 24, 32, 48)]
+    [int] $displayColorDepth = 16,
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-display-horizontalresolution
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-display-horizontalresolution
+    [ValidateRange(640, 1024)]
+    [int] $displayHorizontalResolution = 1024,
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-display-verticalresolution
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-display-verticalresolution
+    [ValidateRange(480, 768)]
+    [int] $displayVerticalResolution = 768,
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-display-refreshrate
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-display-refreshrate
+    [ValidateRange(60, 120)]
+    [int] $displayRefreshRate = 60,
+
     [xml] $template = @"
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
@@ -263,6 +283,12 @@ function New-UnattendFile {
           <Key>$productKey</Key>
         </ProductKey>
       </UserData>
+      <Display>
+        <ColorDepth>$displayColorDepth</ColorDepth>
+        <HorizontalResolution>$displayHorizontalResolution</HorizontalResolution>
+        <RefreshRate>$displayRefreshRate</RefreshRate>
+        <VerticalResolution>$displayVerticalResolution</VerticalResolution>
+      </Display>
     </component>
   </settings>
   <settings pass="offlineServicing">
@@ -293,6 +319,12 @@ function New-UnattendFile {
       <ComputerName>$computerName</ComputerName>
       <ProductKey>$productKey</ProductKey>
       <TimeZone>$timeZone</TimeZone>
+      <Display>
+        <ColorDepth>$displayColorDepth</ColorDepth>
+        <HorizontalResolution>$displayHorizontalResolution</HorizontalResolution>
+        <RefreshRate>$displayRefreshRate</RefreshRate>
+        <VerticalResolution>$displayVerticalResolution</VerticalResolution>
+      </Display>
     </component>
     <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <fDenyTSConnections>false</fDenyTSConnections>
@@ -348,6 +380,12 @@ function New-UnattendFile {
       <RegisteredOrganization>$registeredOrganization</RegisteredOrganization>
       <RegisteredOwner>$registeredOwner</RegisteredOwner>
       $(if ($os -ne 'Windows 7') { ('<DisableAutoDaylightTimeSet>{0}</DisableAutoDaylightTimeSet>' -f $(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })) })
+      <Display>
+        <ColorDepth>$displayColorDepth</ColorDepth>
+        <HorizontalResolution>$displayHorizontalResolution</HorizontalResolution>
+        <RefreshRate>$displayRefreshRate</RefreshRate>
+        <VerticalResolution>$displayVerticalResolution</VerticalResolution>
+      </Display>
     </component>
   </settings>
   <settings pass="auditSystem">
@@ -369,6 +407,12 @@ function New-UnattendFile {
         </AdministratorPassword>
       </UserAccounts>
       $(if ($os -ne 'Windows 7') { ('<DisableAutoDaylightTimeSet>{0}</DisableAutoDaylightTimeSet>' -f $(if ($disableAutoDaylightTimeSet) { 'true' } else { 'false' })) })
+      <Display>
+        <ColorDepth>$displayColorDepth</ColorDepth>
+        <HorizontalResolution>$displayHorizontalResolution</HorizontalResolution>
+        <RefreshRate>$displayRefreshRate</RefreshRate>
+        <VerticalResolution>$displayVerticalResolution</VerticalResolution>
+      </Display>
     </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <AuditComputerName>
@@ -385,6 +429,12 @@ function New-UnattendFile {
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <RegisteredOrganization>$registeredOrganization</RegisteredOrganization>
       <RegisteredOwner>$registeredOwner</RegisteredOwner>
+      <Display>
+        <ColorDepth>$displayColorDepth</ColorDepth>
+        <HorizontalResolution>$displayHorizontalResolution</HorizontalResolution>
+        <RefreshRate>$displayRefreshRate</RefreshRate>
+        <VerticalResolution>$displayVerticalResolution</VerticalResolution>
+      </Display>
     </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       $(if (-not $auditUserResealOmit) {
