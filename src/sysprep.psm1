@@ -340,7 +340,9 @@ function New-UnattendFile {
           <Profile>all</Profile>
         </FirewallGroup>
       </FirewallGroups>
-    </component> 
+    </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -505,6 +507,30 @@ function New-UnattendFile {
           'item' = 'RunAsynchronousCommand';
           'command' = 'Path';
           'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='auditUser']/ns:component[@name='Microsoft-Windows-Deployment']", $nsmgr)
+        },
+        # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runsynchronous-runsynchronouscommand
+        @{
+          'pass' = 'specialize';
+          'synchronicity' = 'synchronous';
+          'commands' = @($commands | ? { $_.Pass -ieq 'specialize' -and $_.Synchronicity -ieq 'synchronous' });
+          'list' = 'RunSynchronous';
+          'item' = 'RunSynchronousCommand';
+          'command' = 'Path';
+          'option' = @{
+            'name' = 'WillReboot';
+            'default' = 'Never'
+          };
+          'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Deployment']", $nsmgr)
+        },
+        # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-runasynchronous-runasynchronouscommand
+        @{
+          'pass' = 'specialize';
+          'synchronicity' = 'asynchronous';
+          'commands' = @($commands | ? { $_.Pass -ieq 'specialize' -and $_.Synchronicity -ieq 'asynchronous' });
+          'list' = 'RunAsynchronous';
+          'item' = 'RunAsynchronousCommand';
+          'command' = 'Path';
+          'parent' = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Deployment']", $nsmgr)
         }
       );
       foreach ($commandPlacement in $commandPlacements) {
