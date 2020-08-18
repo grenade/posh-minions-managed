@@ -124,6 +124,28 @@ function New-UnattendFile {
     [ValidateSet('Home', 'Work', 'Other')]
     [string] $networkLocation = 'Other',
 
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-dns-client-dnsdomain
+    [string] $dnsDomain = $null,
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-dns-client-dnssuffixsearchorder
+    [string[]] $dnsSuffixSearchOrder = $null,
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-dns-client-usedomainnamedevolution
+    [bool] $dnsUseDomainNameDevolution = $true,
+
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-dns-client-interfaces
+    [hashtable[]] $networkInterfaces = @(
+      @{
+        'alias' = 'Local Area Connection';
+        'dns' = @{
+          'domain' = $dnsDomain;
+          'dynamic' = $false;
+          'register' = $false;
+          'search' = @('1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4')
+        }
+      }
+    )
+
     # deprecated after 1709
     [bool] $skipMachineOOBE = $true,
 
@@ -342,6 +364,12 @@ function New-UnattendFile {
       </FirewallGroups>
     </component>
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    </component>
+    <component name="Microsoft-Windows-DNS-Client" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      $(if ($dnsDomain) { ('<DNSDomain>{0}</DNSDomain>' -f $dnsDomain) })
+      $(if ($dnsSuffixSearchOrder -and $dnsSuffixSearchOrder.Length) { ('<DNSSuffixSearchOrder>{0}</DNSSuffixSearchOrder>' -f [string]::Join('', @($dnsSuffixSearchOrder | % { '<DomainName wcm:action="add">{0}</DomainName>' -f $_ }))) })
+      <UseDomainNameDevolution>$(if ($dnsUseDomainNameDevolution) { 'true' } else { 'false' })</UseDomainNameDevolution>
+      $(if ($networkInterfaces -and $networkInterfaces.Length) { ('<Interfaces>{0}</Interfaces>' -f [string]::Join('', @($networkInterfaces | % { ('<Interface wcm:action="add"><Identifier>{0}</Identifier><DNSDomain>{1}</DNSDomain><DNSServerSearchOrder>{2}</DNSServerSearchOrder><EnableAdapterDomainNameRegistration>{3}</EnableAdapterDomainNameRegistration><DisableDynamicUpdate>{4}</DisableDynamicUpdate></Interface>' -f $_.alias, $_.dns.domain, [string]::Join('', @($_.dns.search | % { '<IpAddress wcm:action="add">{0}</IpAddress>' -f $_ })), $(if ($_.dns.register) { 'true' } else { 'false' }), $(if ($_.dns.dynamic) { 'false' } else { 'true' })) }))) })
     </component>
   </settings>
   <settings pass="oobeSystem">
