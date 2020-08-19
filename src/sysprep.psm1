@@ -131,7 +131,7 @@ function New-UnattendFile {
     [string[]] $dnsSuffixSearchOrder = $null,
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-dns-client-usedomainnamedevolution
-    [bool] $dnsUseDomainNameDevolution = $true,
+    [nullable[bool]] $dnsUseDomainNameDevolution = $null,
 
     # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-dns-client-interfaces
     [hashtable[]] $networkInterfaces = @(
@@ -139,8 +139,8 @@ function New-UnattendFile {
         'alias' = 'Local Area Connection';
         'dns' = @{
           'domain' = $dnsDomain;
-          'dynamic' = $false;
-          'register' = $false;
+          'dynamic' = $null;
+          'register' = $null;
           'search' = @('1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4')
         }
       }
@@ -366,10 +366,6 @@ function New-UnattendFile {
     <component name="Microsoft-Windows-Deployment" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     </component>
     <component name="Microsoft-Windows-DNS-Client" processorArchitecture="$processorArchitecture" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      $(if ($dnsDomain) { ('<DNSDomain>{0}</DNSDomain>' -f $dnsDomain) })
-      $(if ($dnsSuffixSearchOrder -and $dnsSuffixSearchOrder.Length) { ('<DNSSuffixSearchOrder>{0}</DNSSuffixSearchOrder>' -f [string]::Join('', @($dnsSuffixSearchOrder | % { '<DomainName wcm:action="add">{0}</DomainName>' -f $_ }))) })
-      <UseDomainNameDevolution>$(if ($dnsUseDomainNameDevolution) { 'true' } else { 'false' })</UseDomainNameDevolution>
-      $(if ($networkInterfaces -and $networkInterfaces.Length) { ('<Interfaces>{0}</Interfaces>' -f [string]::Join('', @($networkInterfaces | % { ('<Interface wcm:action="add"><Identifier>{0}</Identifier><DNSDomain>{1}</DNSDomain><DNSServerSearchOrder>{2}</DNSServerSearchOrder><EnableAdapterDomainNameRegistration>{3}</EnableAdapterDomainNameRegistration><DisableDynamicUpdate>{4}</DisableDynamicUpdate></Interface>' -f $_.alias, $_.dns.domain, [string]::Join('', @($_.dns.search | % { '<IpAddress wcm:action="add">{0}</IpAddress>' -f $_ })), $(if ($_.dns.register) { 'true' } else { 'false' }), $(if ($_.dns.dynamic) { 'false' } else { 'true' })) }))) })
     </component>
   </settings>
   <settings pass="oobeSystem">
@@ -483,10 +479,114 @@ function New-UnattendFile {
   process {
     try {
       $unattend = $template.Clone();
-
       $nsmgr = New-Object System.Xml.XmlNamespaceManager($unattend.NameTable);
       $nsmgr.AddNamespace('ns', 'urn:schemas-microsoft-com:unattend');
-      $specializeMicrosoftWindowsShellSetup = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr);
+
+      # dns client settings in the specialize settings pass of the Microsoft-Windows-DNS-Client component
+      # DNSDomain
+      if ($null -ne $dnsDomain) {
+        $xmlDNSDomain = $unattend.CreateElement('DNSDomain', $unattend.DocumentElement.NamespaceURI);
+        $xmlDNSDomain.AppendChild($unattend.CreateTextNode($dnsDomain)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-DNS-Client']", $nsmgr).AppendChild($xmlDNSDomain) | Out-Null;
+        Write-Log -message ('{0} :: DNSDomain set to {1} in the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name), $dnsDomain) -severity 'debug';
+      } else {
+        Write-Log -message ('{0} :: DNSDomain ommitted from the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name)) -severity 'debug';
+      }
+      # DNSSuffixSearchOrder
+      if (($null -ne $dnsSuffixSearchOrder) -and ($dnsSuffixSearchOrder.Length)) {
+        $xmlDNSSuffixSearchOrder = $unattend.CreateElement('DNSSuffixSearchOrder', $unattend.DocumentElement.NamespaceURI);
+        $xmlDNSSuffixSearchOrderDomainNameKeyValue = 0;
+        foreach ($domainName in $dnsSuffixSearchOrder) {
+          $xmlDNSSuffixSearchOrderDomainName = $unattend.CreateElement('DomainName', $unattend.DocumentElement.NamespaceURI);
+          $xmlDNSSuffixSearchOrderDomainName.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+          $xmlDNSSuffixSearchOrderDomainName.SetAttribute('keyValue', 'http://schemas.microsoft.com/WMIConfig/2002/State', (++$xmlDNSSuffixSearchOrderDomainNameKeyValue)) | Out-Null;
+          $xmlDNSSuffixSearchOrderDomainName.AppendChild($unattend.CreateTextNode($domainName)) | Out-Null;
+          $xmlDNSSuffixSearchOrder.AppendChild($xmlDNSSuffixSearchOrderDomainName) | Out-Null;
+          Write-Log -message ('{0} :: DomainName: {1} added to DNSSuffixSearchOrder' -f $($MyInvocation.MyCommand.Name), $domainName) -severity 'debug';
+        }
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-DNS-Client']", $nsmgr).AppendChild($xmlDNSSuffixSearchOrder) | Out-Null;
+        Write-Log -message ('{0} :: {1} domain name{2} added to the DNSSuffixSearchOrder element of the Microsoft-Windows-DNS-Client component in the specialize settings pass' -f $($MyInvocation.MyCommand.Name), $dnsSuffixSearchOrder.Length, $(if ($dnsSuffixSearchOrder.Length -gt 1) { 's' } else { '' })) -severity 'debug';
+      } else {
+        Write-Log -message ('{0} :: DNSSuffixSearchOrder ommitted from the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name)) -severity 'debug';
+      }
+      # UseDomainNameDevolution
+      if ($null -ne $dnsUseDomainNameDevolution) {
+        $xmlUseDomainNameDevolution = $unattend.CreateElement('UseDomainNameDevolution', $unattend.DocumentElement.NamespaceURI);
+        $xmlUseDomainNameDevolution.AppendChild($unattend.CreateTextNode($(if ($dnsUseDomainNameDevolution) { 'true' } else { 'false' }))) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-DNS-Client']", $nsmgr).AppendChild($xmlUseDomainNameDevolution) | Out-Null;
+        Write-Log -message ('{0} :: UseDomainNameDevolution set to {1} in the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name), $(if ($dnsUseDomainNameDevolution) { 'true' } else { 'false' })) -severity 'debug';
+      } else {
+        Write-Log -message ('{0} :: UseDomainNameDevolution ommitted from the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name)) -severity 'debug';
+      }
+      # Interfaces
+      if (($null -ne $networkInterfaces) -and ($networkInterfaces.Length)) {
+        $xmlInterfaces = $unattend.CreateElement('Interfaces', $unattend.DocumentElement.NamespaceURI);
+        foreach ($networkInterface in $networkInterfaces) {
+          # Interface
+          $xmlInterface = $unattend.CreateElement('Interface', $unattend.DocumentElement.NamespaceURI);
+          $xmlInterface.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+          # Identifier
+          $xmlInterfaceIdentifier = $unattend.CreateElement('Identifier', $unattend.DocumentElement.NamespaceURI);
+          $xmlInterfaceIdentifier.AppendChild($unattend.CreateTextNode($networkInterface.alias)) | Out-Null;
+          $xmlInterface.AppendChild($xmlInterfaceIdentifier) | Out-Null;
+          Write-Log -message ('{0} :: Identifier set to: {1} for network interface: {2}' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias, $networkInterface.alias) -severity 'debug';
+          if ($null -ne $networkInterface.dns) {
+            # DNSDomain
+            if ($null -ne $networkInterface.dns.domain) {
+              $xmlInterfaceDNSDomain = $unattend.CreateElement('DNSDomain', $unattend.DocumentElement.NamespaceURI);
+              $xmlInterfaceDNSDomain.AppendChild($unattend.CreateTextNode($networkInterface.dns.domain)) | Out-Null;
+              $xmlInterface.AppendChild($xmlInterfaceDNSDomain) | Out-Null;
+              Write-Log -message ('{0} :: DNSDomain set to: {1} for network interface: {2}' -f $($MyInvocation.MyCommand.Name), $networkInterface.dns.domain, $networkInterface.alias) -severity 'debug';
+            } else {
+              Write-Log -message ('{0} :: DNSDomain element omitted for network interface: {1}' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias) -severity 'debug';
+            }
+            # DNSServerSearchOrder
+            if (($null -ne $networkInterface.dns.search) -and ($networkInterface.dns.search.Length)) {
+              $xmlInterfaceDNSServerSearchOrder = $unattend.CreateElement('DNSServerSearchOrder', $unattend.DocumentElement.NamespaceURI);
+              # IpAddress
+              $xmlInterfaceDNSServerSearchOrderIpAddressKeyValue = 0;
+              foreach ($dnsIpAddress in $networkInterface.dns.search) {
+                $xmlInterfaceDNSServerSearchOrderIpAddress = $unattend.CreateElement('IpAddress', $unattend.DocumentElement.NamespaceURI);
+                $xmlInterfaceDNSServerSearchOrderIpAddress.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+                $xmlInterfaceDNSServerSearchOrderIpAddress.SetAttribute('keyValue', 'http://schemas.microsoft.com/WMIConfig/2002/State', (++$xmlInterfaceDNSServerSearchOrderIpAddressKeyValue)) | Out-Null;
+                $xmlInterfaceDNSServerSearchOrderIpAddress.AppendChild($unattend.CreateTextNode($dnsIpAddress)) | Out-Null;
+                $xmlInterfaceDNSServerSearchOrder.AppendChild($xmlInterfaceDNSServerSearchOrderIpAddress) | Out-Null;
+                Write-Log -message ('{0} :: IpAddress: {1} added with keyValue: {2} to DNSServerSearchOrder for network interface: {3}' -f $($MyInvocation.MyCommand.Name), $dnsIpAddress, $xmlInterfaceDNSServerSearchOrderIpAddressKeyValue, $networkInterface.alias) -severity 'debug';
+              }
+              $xmlInterface.AppendChild($xmlInterfaceDNSServerSearchOrder) | Out-Null;
+              Write-Log -message ('{0} :: {1} ip address{2} added to DNSServerSearchOrder for network interface: {3}' -f $($MyInvocation.MyCommand.Name), $networkInterface.dns.search.Length, $(if ($networkInterface.dns.search.Length -gt 1) { 'es' } else { '' }), $networkInterface.alias) -severity 'debug';
+            } else {
+              Write-Log -message ('{0} :: DNSServerSearchOrder element omitted for network interface: {1}' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias) -severity 'debug';
+            }
+            # EnableAdapterDomainNameRegistration
+            if ($null -ne $networkInterface.dns.register) {
+              $xmlInterfaceEnableAdapterDomainNameRegistration = $unattend.CreateElement('EnableAdapterDomainNameRegistration', $unattend.DocumentElement.NamespaceURI);
+              $xmlInterfaceEnableAdapterDomainNameRegistration.AppendChild($unattend.CreateTextNode($(if ($networkInterface.dns.register) { 'true' } else { 'false' }))) | Out-Null;
+              $xmlInterface.AppendChild($xmlInterfaceEnableAdapterDomainNameRegistration) | Out-Null;
+              Write-Log -message ('{0} :: EnableAdapterDomainNameRegistration set to: {1} for network interface: {2}' -f $($MyInvocation.MyCommand.Name), $(if ($networkInterface.dns.register) { 'true' } else { 'false' }), $networkInterface.alias) -severity 'debug';
+            } else {
+              Write-Log -message ('{0} :: EnableAdapterDomainNameRegistration element omitted for network interface: {1}' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias) -severity 'debug';
+            }
+            # DisableDynamicUpdate
+            if ($null -ne $networkInterface.dns.dynamic) {
+              $xmlInterfaceDisableDynamicUpdate = $unattend.CreateElement('DisableDynamicUpdate', $unattend.DocumentElement.NamespaceURI);
+              $xmlInterfaceDisableDynamicUpdate.AppendChild($unattend.CreateTextNode($(if ($networkInterface.dns.dynamic) { 'false' } else { 'true' }))) | Out-Null;
+              $xmlInterface.AppendChild($xmlInterfaceDisableDynamicUpdate) | Out-Null;
+              Write-Log -message ('{0} :: DisableDynamicUpdate set to: {1} for network interface: {2}' -f $($MyInvocation.MyCommand.Name), $(if ($networkInterface.dns.dynamic) { 'false' } else { 'true' }), $networkInterface.alias) -severity 'debug';
+            } else {
+              Write-Log -message ('{0} :: DisableDynamicUpdate element omitted for network interface: {1}' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias) -severity 'debug';
+            }
+          }
+          $xmlInterfaces.AppendChild($xmlInterface) | Out-Null;
+          Write-Log -message ('{0} :: Interface: {1} added to Interfaces' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias) -severity 'debug';
+        }
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-DNS-Client']", $nsmgr).AppendChild($xmlInterfaces) | Out-Null;
+        Write-Log -message ('{0} :: {1} network interface configuration{2} added to Microsoft-Windows-DNS-Client component in the specialize settings pass' -f $($MyInvocation.MyCommand.Name), $networkInterfaces.Length, $(if ($networkInterfaces.Length -gt 1) { 's' } else { '' })) -severity 'debug';
+      } else {
+        Write-Log -message ('{0} :: network interface configuration ommitted from the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name)) -severity 'debug';
+      }
+
+      # unattended commands
       $commandPlacements = @(
         # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-shell-setup-firstlogoncommands-synchronouscommand
         @{
@@ -610,19 +710,18 @@ function New-UnattendFile {
       }
       # todo: move logic below into template
       if (($os -ne 'Windows 7') -or (($os -eq 'Windows 7') -and (-not $enableRDP))) {
-        $specializeSettingsPass = $unattend.SelectSingleNode("//ns:settings[@pass='specialize']", $nsmgr);
-        $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Microsoft-Windows-TerminalServices-LocalSessionManager']", $nsmgr)) | Out-Null;
-        $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Microsoft-Windows-TerminalServices-RDP-WinStationExtensions']", $nsmgr)) | Out-Null;
-        $specializeSettingsPass.RemoveChild($specializeSettingsPass.SelectSingleNode("./ns:component[@name='Networking-MPSSVC-Svc']", $nsmgr)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']", $nsmgr).RemoveChild($unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-TerminalServices-LocalSessionManager']", $nsmgr)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']", $nsmgr).RemoveChild($unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-TerminalServices-RDP-WinStationExtensions']", $nsmgr)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']", $nsmgr).RemoveChild($unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Networking-MPSSVC-Svc']", $nsmgr)) | Out-Null;
       }
       if (-not $computerName) {
-        $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ComputerName', $nsmgr)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr).RemoveChild($unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']/ns:ComputerName", $nsmgr)) | Out-Null;
       }
       if (-not $productKey) {
-        $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:ProductKey', $nsmgr)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr).RemoveChild($unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']/ns:ProductKey", $nsmgr)) | Out-Null;
       }
       if (-not $timeZone) {
-        $specializeMicrosoftWindowsShellSetup.RemoveChild($specializeMicrosoftWindowsShellSetup.SelectSingleNode('./ns:TimeZone', $nsmgr)) | Out-Null;
+        $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']", $nsmgr).RemoveChild($unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-Shell-Setup']/ns:TimeZone", $nsmgr)) | Out-Null;
       }
       $unattend.Save($destinationPath) | Out-Null;
     } catch {
