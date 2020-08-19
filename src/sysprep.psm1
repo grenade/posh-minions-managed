@@ -144,7 +144,7 @@ function New-UnattendFile {
           'search' = @('1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4')
         }
       }
-    )
+    ),
 
     # deprecated after 1709
     [bool] $skipMachineOOBE = $true,
