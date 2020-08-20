@@ -484,7 +484,7 @@ function New-UnattendFile {
 
       # dns client settings in the specialize settings pass of the Microsoft-Windows-DNS-Client component
       # DNSDomain
-      if ($null -ne $dnsDomain) {
+      if (($null -ne $dnsDomain) -and (-not [string]::IsNullOrEmpty($dnsDomain))) {
         $xmlDNSDomain = $unattend.CreateElement('DNSDomain', $unattend.DocumentElement.NamespaceURI);
         $xmlDNSDomain.AppendChild($unattend.CreateTextNode($dnsDomain)) | Out-Null;
         $unattend.SelectSingleNode("//ns:settings[@pass='specialize']/ns:component[@name='Microsoft-Windows-DNS-Client']", $nsmgr).AppendChild($xmlDNSDomain) | Out-Null;
@@ -532,7 +532,7 @@ function New-UnattendFile {
           Write-Log -message ('{0} :: Identifier set to: {1} for network interface: {2}' -f $($MyInvocation.MyCommand.Name), $networkInterface.alias, $networkInterface.alias) -severity 'debug';
           if ($null -ne $networkInterface.dns) {
             # DNSDomain
-            if ($null -ne $networkInterface.dns.domain) {
+            if (($null -ne $networkInterface.dns.domain) -and (-not [string]::IsNullOrEmpty($networkInterface.dns.domain))) {
               $xmlInterfaceDNSDomain = $unattend.CreateElement('DNSDomain', $unattend.DocumentElement.NamespaceURI);
               $xmlInterfaceDNSDomain.AppendChild($unattend.CreateTextNode($networkInterface.dns.domain)) | Out-Null;
               $xmlInterface.AppendChild($xmlInterfaceDNSDomain) | Out-Null;
