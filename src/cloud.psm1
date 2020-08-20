@@ -535,6 +535,51 @@ function New-CloudInstanceFromImageExport {
           -VMName $targetInstanceName `
           -VMSize $azMachineVariant);
         Write-Log -message ('{0} :: instance config create operation for instance: {1}, with machine variant: {2}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant) -severity 'debug';
+
+        # storage account
+        $targetStorageAccountName = ('{0}cib' -f $targetResourceGroupName.Replace('rg-', '').Replace('-', ''));
+        try {
+          $azStorageAccount = (Get-AzStorageAccount `
+            -ResourceGroupName $targetResourceGroupName `
+            -Name $targetStorageAccountName `
+            -ErrorAction 'SilentlyContinue');
+          if ($azStorageAccount) {
+            Write-Log -message ('{0} :: detected storage account: {1}, for resource group: {2}' -f $($MyInvocation.MyCommand.Name), $azStorageAccount.StorageAccountName, $targetResourceGroupName) -severity 'debug';
+          } else {
+            $azStorageAccount = (New-AzStorageAccount `
+              -ResourceGroupName $targetResourceGroupName `
+              -AccountName $targetStorageAccountName `
+              -Location $targetResourceRegion `
+              -SkuName 'Standard_LRS');
+            Write-Log -message ('{0} :: created storage account: {1}, for resource group: {2}' -f $($MyInvocation.MyCommand.Name), $azStorageAccount.StorageAccountName, $targetResourceGroupName) -severity 'debug';
+          }
+        } catch {
+          Write-Log -message ('{0} :: failed to detect or create storage account: {1}, for resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetStorageAccountName, $targetResourceGroupName, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.InnerException.Message) -severity 'error';
+          }
+          $targetStorageAccountName = $null;
+        }
+
+        # enable boot diagnostics
+        if ($targetStorageAccountName) {
+          $azVMRollback = $azVM;
+          try {
+            $azVM = (Set-AzVMBootDiagnostic `
+              -VM $azVM `
+              -Enable `
+              -ResourceGroupName $targetResourceGroupName `
+              -StorageAccountName $targetStorageAccountName)
+            Write-Log -message ('{0} :: vm boot diagnostics enabled and set to storage account: {1}, in resource group: {2}' -f $($MyInvocation.MyCommand.Name), $targetStorageAccountName, $targetResourceGroupName) -severity 'debug';
+          } catch {
+            Write-Log -message ('{0} :: failed to enable vm boot diagnostics and set to storage account: {1}, in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetStorageAccountName, $targetResourceGroupName, $_.Exception.Message) -severity 'error';
+            if ($_.Exception.InnerException) {
+              Write-Log -message ('{0} :: inner exception: {1}' -f $($MyInvocation.MyCommand.Name), $_.Exception.InnerException.Message) -severity 'error';
+            }
+            $azVM = $azVMRollback;
+          }
+        }
+
         $azVM = (Add-AzVMNetworkInterface `
           -VM $azVM `
           -Id $azNetworkInterface.Id);
@@ -571,7 +616,7 @@ function New-CloudInstanceFromImageExport {
               -DiskSizeInGB $targetInstanceDisks[$i].SizeInGB `
               -CreateOption 'Empty' `
               -StorageAccountType $azDiskVariant);
-            Write-Log -message ('{0} :: set data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant) -severity 'debug';
+            Write-Log -message ('{0} :: add data disk operation for instance: {1}, in resource group: {2}, for data disk with lun: {3}, with disk variant: {4}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $targetResourceGroupName, ($i - 1), $azDiskVariant) -severity 'debug';
           }
         }
         if ($disablePlatformAgent) {
