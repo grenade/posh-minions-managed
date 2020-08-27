@@ -469,26 +469,7 @@ function New-CloudInstanceFromImageExport {
           -DiskName $azDisk.Name);
         Write-Log -message ('{0} :: revoke access operation on disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessRevokeOperation.Status) -severity 'debug';
 
-        # networking
-        $azVirtualNetwork = (Get-AzVirtualNetwork `
-          -Name $targetVirtualNetworkName `
-          -ResourceGroupName $targetResourceGroupName `
-          -ErrorAction SilentlyContinue);
-        if (-not ($azVirtualNetwork)) {
-          $azVirtualNetworkSubnetConfig = (New-AzVirtualNetworkSubnetConfig `
-            -Name $targetSubnetName `
-            -AddressPrefix $targetSubnetAddressPrefix);
-          $azVirtualNetwork = (New-AzVirtualNetwork `
-            -Name $targetVirtualNetworkName `
-            -ResourceGroupName $targetResourceGroupName `
-            -Location $targetResourceRegion `
-            -AddressPrefix $targetVirtualNetworkAddressPrefix `
-            -Subnet $azVirtualNetworkSubnetConfig `
-            -DnsServer $targetVirtualNetworkDnsServers);
-          Write-Log -message ('{0} :: virtual network create operation for virtual network: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName, $targetResourceGroupName, $azVirtualNetwork.ProvisioningState) -severity 'debug';
-        } else {
-          Write-Log -message ('{0} :: virtual network find operation for virtual network: {1}, in resource group: {2}, suceeded' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName, $targetResourceGroupName) -severity 'debug';
-        }
+        # network security group (firewall rules and exceptions)
         $azNetworkSecurityGroup = (Get-AzNetworkSecurityGroup `
           -Name $targetFirewallConfigurationName `
           -ResourceGroupName $targetResourceGroupName `
@@ -514,6 +495,41 @@ function New-CloudInstanceFromImageExport {
         } else {
           Write-Log -message ('{0} :: network security group find operation for network security group: {1}, in resource group: {2}, suceeded' -f $($MyInvocation.MyCommand.Name), $targetFirewallConfigurationName, $targetResourceGroupName) -severity 'debug';
         }
+
+        # virtual network and subnet
+        $azVirtualNetwork = (Get-AzVirtualNetwork `
+          -Name $targetVirtualNetworkName `
+          -ResourceGroupName $targetResourceGroupName `
+          -ErrorAction SilentlyContinue);
+        if (-not ($azVirtualNetwork)) {
+          $azVirtualNetworkSubnetConfig = (New-AzVirtualNetworkSubnetConfig `
+            -Name $targetSubnetName `
+            -AddressPrefix $targetSubnetAddressPrefix `
+            -NetworkSecurityGroup $azNetworkSecurityGroup);
+          $azVirtualNetwork = (New-AzVirtualNetwork `
+            -Name $targetVirtualNetworkName `
+            -ResourceGroupName $targetResourceGroupName `
+            -Location $targetResourceRegion `
+            -AddressPrefix $targetVirtualNetworkAddressPrefix `
+            -Subnet $azVirtualNetworkSubnetConfig `
+            -DnsServer $targetVirtualNetworkDnsServers);
+          Write-Log -message ('{0} :: virtual network create operation for virtual network: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName, $targetResourceGroupName, $azVirtualNetwork.ProvisioningState) -severity 'debug';
+        } else {
+          Write-Log -message ('{0} :: virtual network find operation for virtual network: {1}, in resource group: {2}, suceeded' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName, $targetResourceGroupName) -severity 'debug';
+          if (-not ($azVirtualNetwork.Subnets[0].NetworkSecurityGroup)) {
+            $azVirtualNetwork = (Set-AzVirtualNetworkSubnetConfig `
+              -Name $targetSubnetName `
+              -VirtualNetwork $azVirtualNetwork `
+              -AddressPrefix $targetSubnetAddressPrefix `
+              -NetworkSecurityGroup $azNetworkSecurityGroup);
+            $azVirtualNetwork = ($azVirtualNetwork | Set-AzVirtualNetwork);
+            if ($azVirtualNetwork.Subnets[0].NetworkSecurityGroup) {
+              Write-Log -message ('{0} :: virtual network update (associate network security group: {1}) operation for virtual network: {2}, in resource group: {3}, suceeded' -f $($MyInvocation.MyCommand.Name), $azVirtualNetwork.Subnets[0].NetworkSecurityGroup.Name, $targetVirtualNetworkName, $targetResourceGroupName) -severity 'debug';
+            }
+          }
+        }
+
+        # public ip address
         $azPublicIpAddress = (New-AzPublicIpAddress `
           -Name ('ip-{0}' -f $targetResourceId) `
           -ResourceGroupName $targetResourceGroupName `
