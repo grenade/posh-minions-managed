@@ -146,6 +146,41 @@ function New-UnattendFile {
       }
     ),
 
+    # https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-diskconfiguration
+    [hashtable[]] $disks = @(
+      @{
+        'id' = 0;
+        'wipe' = $true;
+        'partitions' = @(
+          @{
+            'id' = 1;
+            'type' = @{
+              'name': 'Primary';
+              'id' = '0x27'
+            };
+            'size' = 100;
+            'active' = $true;
+            'format' = 'NTFS';
+            'label' = 'System Reserved'
+          },
+          @{
+            'id' = 2;
+            'type' = @{
+              'name': 'Primary'
+            };
+            'extend' = $true;
+            'active' = $true;
+            'format' = 'NTFS';
+            'label' = 'os';
+            'letter' = 'C'
+          }
+        )
+      }
+    ),
+
+    [int] $osDiskId = 0,
+    [int] $osPartitionId = 2,
+
     # deprecated after 1709
     [bool] $skipMachineOOBE = $true,
 
@@ -252,47 +287,11 @@ function New-UnattendFile {
         <Enable>$(if ($dynamicUpdateEnable) { 'true' } else { 'false' })</Enable>
         <WillShowUI>$dynamicUpdateWillShowUI</WillShowUI>
       </DynamicUpdate>
-      <DiskConfiguration>
-        <Disk wcm:action="add">
-          <CreatePartitions>
-            <CreatePartition wcm:action="add">
-              <Order>1</Order>
-              <Type>Primary</Type>
-              <Size>100</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Extend>true</Extend>
-              <Order>2</Order>
-              <Type>Primary</Type>
-            </CreatePartition>
-          </CreatePartitions>
-          <ModifyPartitions>
-            <ModifyPartition wcm:action="add">
-              <Active>true</Active>
-              <Format>NTFS</Format>
-              <Label>System Reserved</Label>
-              <Order>1</Order>
-              <PartitionID>1</PartitionID>
-              <TypeID>0x27</TypeID>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
-              <Active>true</Active>
-              <Format>NTFS</Format>
-              <Label>os</Label>
-              <Letter>C</Letter>
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-            </ModifyPartition>
-          </ModifyPartitions>
-          <DiskID>0</DiskID>
-          <WillWipeDisk>true</WillWipeDisk>
-        </Disk>
-      </DiskConfiguration>
       <ImageInstall>
         <OSImage>
           <InstallTo>
-            <DiskID>0</DiskID>
-            <PartitionID>2</PartitionID>
+            <DiskID>$osDiskId</DiskID>
+            <PartitionID>$osPartitionId</PartitionID>
           </InstallTo>
           <InstallToAvailablePartition>false</InstallToAvailablePartition>
         </OSImage>
@@ -584,6 +583,118 @@ function New-UnattendFile {
         Write-Log -message ('{0} :: {1} network interface configuration{2} added to Microsoft-Windows-DNS-Client component in the specialize settings pass' -f $($MyInvocation.MyCommand.Name), $networkInterfaces.Length, $(if ($networkInterfaces.Length -gt 1) { 's' } else { '' })) -severity 'debug';
       } else {
         Write-Log -message ('{0} :: network interface configuration ommitted from the Microsoft-Windows-DNS-Client component of the specialize settings pass' -f $($MyInvocation.MyCommand.Name)) -severity 'debug';
+      }
+      # DiskConfiguration
+      if (($null -ne $disks) -and ($disks.Length)) {
+        $xmlDiskConfiguration = $unattend.CreateElement('DiskConfiguration', $unattend.DocumentElement.NamespaceURI);
+        foreach ($disk in $disks) {
+          # Disk
+          $xmlDisk = $unattend.CreateElement('Disk', $unattend.DocumentElement.NamespaceURI);
+          $xmlDisk.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+
+          # DiskID
+          $xmlDiskDiskID = $unattend.CreateElement('DiskID', $unattend.DocumentElement.NamespaceURI);
+          $xmlDiskDiskID.AppendChild($unattend.CreateTextNode($disk.id)) | Out-Null;
+          $xmlDisk.AppendChild($xmlDiskDiskID) | Out-Null;
+
+          # WillWipeDisk
+          $xmlDiskWillWipeDisk = $unattend.CreateElement('WillWipeDisk', $unattend.DocumentElement.NamespaceURI);
+          $xmlDiskWillWipeDisk.AppendChild($unattend.CreateTextNode($(if ($disk.wipe) { 'true' } else { 'false' }))) | Out-Null;
+          $xmlDisk.AppendChild($xmlDiskWillWipeDisk) | Out-Null;
+
+          # CreatePartitions, ModifyPartitions
+          if (($null -ne $disk.partitions) -and ($disk.partitions.Length)) {
+            $xmlDiskCreatePartitions = $unattend.CreateElement('CreatePartitions', $unattend.DocumentElement.NamespaceURI);
+            $xmlDiskModifyPartitions = $unattend.CreateElement('ModifyPartitions', $unattend.DocumentElement.NamespaceURI);
+            foreach ($partition in $disk.partitions) {
+
+              # CreatePartition
+              $xmlDiskCreatePartitionsCreatePartition = $unattend.CreateElement('CreatePartition', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskCreatePartitionsCreatePartition.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+
+              # ModifyPartition
+              $xmlDiskModifyPartitionsModifyPartition = $unattend.CreateElement('ModifyPartition', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskModifyPartitionsModifyPartition.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
+
+              # Order
+              $xmlDiskPartitionOrder = $unattend.CreateElement('Order', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskPartitionOrder.AppendChild($unattend.CreateTextNode($partition.id)) | Out-Null;
+              $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionOrder) | Out-Null;
+              $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionOrder) | Out-Null;
+
+              # Type
+              $xmlDiskPartitionType = $unattend.CreateElement('Type', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskPartitionType.AppendChild($unattend.CreateTextNode($partition.type.name)) | Out-Null;
+              $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionType) | Out-Null;
+
+              # TypeID
+              if ($partition.type.id) {
+                $xmlDiskPartitionTypeID = $unattend.CreateElement('TypeID', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionTypeID.AppendChild($unattend.CreateTextNode($partition.type.id)) | Out-Null;
+                $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionTypeID) | Out-Null;
+              }
+
+              # Size
+              if ($partition.size) {
+                $xmlDiskPartitionSize = $unattend.CreateElement('Size', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionSize.AppendChild($unattend.CreateTextNode($partition.size)) | Out-Null;
+                $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionSize) | Out-Null;
+              }
+
+              # Extend
+              elseif ($partition.extend) {
+                $xmlDiskPartitionExtend = $unattend.CreateElement('Extend', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionExtend.AppendChild($unattend.CreateTextNode($(if ($partition.extend) { 'true' } else { 'false' }))) | Out-Null;
+                $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionExtend) | Out-Null;
+              }
+
+              # PartitionID
+              $xmlDiskPartitionPartitionID = $unattend.CreateElement('PartitionID', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskPartitionPartitionID.AppendChild($unattend.CreateTextNode($partition.id)) | Out-Null;
+              $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionPartitionID) | Out-Null;
+
+              # Format
+              if ($partition.format) {
+                $xmlDiskPartitionFormat = $unattend.CreateElement('Format', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionFormat.AppendChild($unattend.CreateTextNode($partition.format)) | Out-Null;
+                $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionFormat) | Out-Null;
+              }
+
+              # Label
+              if ($partition.label) {
+                $xmlDiskPartitionLabel = $unattend.CreateElement('Label', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionLabel.AppendChild($unattend.CreateTextNode($partition.label)) | Out-Null;
+                $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionLabel) | Out-Null;
+              }
+
+              # Letter
+              if ($partition.letter) {
+                $xmlDiskPartitionLetter = $unattend.CreateElement('Letter', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionLetter.AppendChild($unattend.CreateTextNode($partition.letter)) | Out-Null;
+                $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionLetter) | Out-Null;
+              }
+
+              # Active
+              if ($partition.active) {
+                $xmlDiskPartitionActive = $unattend.CreateElement('Active', $unattend.DocumentElement.NamespaceURI);
+                $xmlDiskPartitionActive.AppendChild($unattend.CreateTextNode($(if ($partition.active) { 'true' } else { 'false' }))) | Out-Null;
+                $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionActive) | Out-Null;
+              }
+
+              $xmlDiskCreatePartitions.AppendChild($xmlDiskCreatePartitionsCreatePartition) | Out-Null;
+              $xmlDiskModifyPartitions.AppendChild($xmlDiskModifyPartitionsModifyPartition) | Out-Null;
+              Write-Log -message ('{0} :: {1} Partition added with PartitionID: {2}, to DiskID: {3}' -f $($MyInvocation.MyCommand.Name), $partition.type.name, $partition.id, $disk.id) -severity 'debug';
+            }
+            $xmlDisk.AppendChild($xmlDiskCreatePartitions) | Out-Null;
+            $xmlDisk.AppendChild($xmlDiskModifyPartitions) | Out-Null;
+          }
+          $xmlDiskConfiguration.AppendChild($xmlDisk) | Out-Null;
+          Write-Log -message ('{0} :: Disk added to DiskConfiguration with DiskID: {1}, WillWipeDisk: {2}' -f $($MyInvocation.MyCommand.Name), $disk.id, $(if ($disk.wipe) { 'true' } else { 'false' })) -severity 'debug';
+        }
+        $unattend.SelectSingleNode("//ns:settings[@pass='windowsPE']/ns:component[@name='Microsoft-Windows-Setup']", $nsmgr).AppendChild($xmlDiskConfiguration) | Out-Null;
+        Write-Log -message ('{0} :: {1} disk configuration{2} added to Microsoft-Windows-DNS-Client component in the specialize settings pass' -f $($MyInvocation.MyCommand.Name), $disks.Length, $(if ($disks.Length -gt 1) { 's' } else { '' })) -severity 'debug';
+      } else {
+        Write-Log -message ('{0} :: disk configuration ommitted from the Microsoft-Windows-Setup component of the windowsPE settings pass' -f $($MyInvocation.MyCommand.Name)) -severity 'debug';
       }
 
       # unattended commands
