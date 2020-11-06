@@ -155,7 +155,7 @@ function New-UnattendFile {
           @{
             'id' = 1;
             'type' = @{
-              'name': 'Primary';
+              'name' = 'Primary';
               'id' = '0x27'
             };
             'size' = 100;
@@ -166,7 +166,7 @@ function New-UnattendFile {
           @{
             'id' = 2;
             'type' = @{
-              'name': 'Primary'
+              'name' = 'Primary'
             };
             'extend' = $true;
             'active' = $true;
