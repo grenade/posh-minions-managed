@@ -588,16 +588,16 @@ function New-UnattendFile {
       if (($null -ne $disks) -and ($disks.Length)) {
         $xmlDiskConfiguration = $unattend.CreateElement('DiskConfiguration', $unattend.DocumentElement.NamespaceURI);
         foreach ($disk in $disks) {
-          # Disk
+          # DiskConfiguration/Disk
           $xmlDisk = $unattend.CreateElement('Disk', $unattend.DocumentElement.NamespaceURI);
           $xmlDisk.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
 
-          # DiskID
+          # DiskConfiguration/Disk/DiskID
           $xmlDiskDiskID = $unattend.CreateElement('DiskID', $unattend.DocumentElement.NamespaceURI);
           $xmlDiskDiskID.AppendChild($unattend.CreateTextNode($disk.id)) | Out-Null;
           $xmlDisk.AppendChild($xmlDiskDiskID) | Out-Null;
 
-          # WillWipeDisk
+          # DiskConfiguration/Disk/WillWipeDisk
           $xmlDiskWillWipeDisk = $unattend.CreateElement('WillWipeDisk', $unattend.DocumentElement.NamespaceURI);
           $xmlDiskWillWipeDisk.AppendChild($unattend.CreateTextNode($(if ($disk.wipe) { 'true' } else { 'false' }))) | Out-Null;
           $xmlDisk.AppendChild($xmlDiskWillWipeDisk) | Out-Null;
@@ -608,73 +608,77 @@ function New-UnattendFile {
             $xmlDiskModifyPartitions = $unattend.CreateElement('ModifyPartitions', $unattend.DocumentElement.NamespaceURI);
             foreach ($partition in $disk.partitions) {
 
-              # CreatePartition
+              # DiskConfiguration/Disk/CreatePartitions/CreatePartition
               $xmlDiskCreatePartitionsCreatePartition = $unattend.CreateElement('CreatePartition', $unattend.DocumentElement.NamespaceURI);
               $xmlDiskCreatePartitionsCreatePartition.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
 
-              # ModifyPartition
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition
               $xmlDiskModifyPartitionsModifyPartition = $unattend.CreateElement('ModifyPartition', $unattend.DocumentElement.NamespaceURI);
               $xmlDiskModifyPartitionsModifyPartition.SetAttribute('action', 'http://schemas.microsoft.com/WMIConfig/2002/State', 'add') | Out-Null;
 
-              # Order
-              $xmlDiskPartitionOrder = $unattend.CreateElement('Order', $unattend.DocumentElement.NamespaceURI);
-              $xmlDiskPartitionOrder.AppendChild($unattend.CreateTextNode($partition.id)) | Out-Null;
-              $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionOrder) | Out-Null;
-              $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionOrder) | Out-Null;
+              # DiskConfiguration/Disk/CreatePartitions/CreatePartition/Order
+              $xmlDiskCreatePartitionsCreatePartitionOrder = $unattend.CreateElement('Order', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskCreatePartitionsCreatePartitionOrder.AppendChild($unattend.CreateTextNode($partition.id)) | Out-Null;
+              $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskCreatePartitionsCreatePartitionOrder) | Out-Null;
 
-              # Type
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/Order
+              $xmlDiskModifyPartitionsModifyPartitionOrder = $unattend.CreateElement('Order', $unattend.DocumentElement.NamespaceURI);
+              $xmlDiskModifyPartitionsModifyPartitionOrder.AppendChild($unattend.CreateTextNode($partition.id)) | Out-Null;
+              $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskModifyPartitionsModifyPartitionOrder) | Out-Null;
+
+              # DiskConfiguration/Disk/CreatePartitions/CreatePartition/Type
               $xmlDiskPartitionType = $unattend.CreateElement('Type', $unattend.DocumentElement.NamespaceURI);
               $xmlDiskPartitionType.AppendChild($unattend.CreateTextNode($partition.type.name)) | Out-Null;
               $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionType) | Out-Null;
 
-              # TypeID
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/TypeID
               if ($partition.type.id) {
                 $xmlDiskPartitionTypeID = $unattend.CreateElement('TypeID', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionTypeID.AppendChild($unattend.CreateTextNode($partition.type.id)) | Out-Null;
                 $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionTypeID) | Out-Null;
               }
 
-              # Size
+              # DiskConfiguration/Disk/CreatePartitions/CreatePartition/Size
               if ($partition.size) {
                 $xmlDiskPartitionSize = $unattend.CreateElement('Size', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionSize.AppendChild($unattend.CreateTextNode($partition.size)) | Out-Null;
                 $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionSize) | Out-Null;
               }
 
-              # Extend
+              # DiskConfiguration/Disk/CreatePartitions/CreatePartition/Extend
               elseif ($partition.extend) {
                 $xmlDiskPartitionExtend = $unattend.CreateElement('Extend', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionExtend.AppendChild($unattend.CreateTextNode($(if ($partition.extend) { 'true' } else { 'false' }))) | Out-Null;
                 $xmlDiskCreatePartitionsCreatePartition.AppendChild($xmlDiskPartitionExtend) | Out-Null;
               }
 
-              # PartitionID
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/PartitionID
               $xmlDiskPartitionPartitionID = $unattend.CreateElement('PartitionID', $unattend.DocumentElement.NamespaceURI);
               $xmlDiskPartitionPartitionID.AppendChild($unattend.CreateTextNode($partition.id)) | Out-Null;
               $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionPartitionID) | Out-Null;
 
-              # Format
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/Format
               if ($partition.format) {
                 $xmlDiskPartitionFormat = $unattend.CreateElement('Format', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionFormat.AppendChild($unattend.CreateTextNode($partition.format)) | Out-Null;
                 $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionFormat) | Out-Null;
               }
 
-              # Label
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/Label
               if ($partition.label) {
                 $xmlDiskPartitionLabel = $unattend.CreateElement('Label', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionLabel.AppendChild($unattend.CreateTextNode($partition.label)) | Out-Null;
                 $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionLabel) | Out-Null;
               }
 
-              # Letter
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/Letter
               if ($partition.letter) {
                 $xmlDiskPartitionLetter = $unattend.CreateElement('Letter', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionLetter.AppendChild($unattend.CreateTextNode($partition.letter)) | Out-Null;
                 $xmlDiskModifyPartitionsModifyPartition.AppendChild($xmlDiskPartitionLetter) | Out-Null;
               }
 
-              # Active
+              # DiskConfiguration/Disk/ModifyPartitions/ModifyPartition/Active
               if ($partition.active) {
                 $xmlDiskPartitionActive = $unattend.CreateElement('Active', $unattend.DocumentElement.NamespaceURI);
                 $xmlDiskPartitionActive.AppendChild($unattend.CreateTextNode($(if ($partition.active) { 'true' } else { 'false' }))) | Out-Null;
