@@ -102,6 +102,9 @@
         Disable Windows Notification Center in the default user registry hive.
         The default is False.
 
+    .PARAMETER EnableDefaultStrongCryptography
+        Enable strong cryptography (TLS v 1.2) by default for the .Net framework
+
     .PARAMETER Feature
         Enables specified Windows Feature(s). Note that you need to specify the Internal names
         understood by DISM and DISM CMDLets (e.g. NetFx3) instead of the "Friendly" names
@@ -390,6 +393,11 @@ Convert-WindowsImage
         [Parameter(ParameterSetName = "PartitionStyle")]
         [switch]
         $DisableNotificationCenter = $false,
+
+        [Parameter(ParameterSetName = "DiskLayout")]
+        [Parameter(ParameterSetName = "PartitionStyle")]
+        [switch]
+        $EnableDefaultStrongCryptography = $true,
 
         [Parameter(ParameterSetName = "DiskLayout")]
         [Parameter(ParameterSetName = "PartitionStyle")]
@@ -2366,6 +2374,34 @@ You can use the fields below to configure the VHD or VHDX that you want to creat
 
                         Write-Verbose -Message "Disabling Windows Notification Center in default user registry hive"
                         Set-ItemProperty -Path "HKLM:\$($hive)\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "DisableNotificationCenter" -Value 0x1 -Type DWord
+
+                        Dismount-RegistryHive -HiveMountPoint $hive
+                    }
+
+                    If ($EnableDefaultStrongCryptography)
+                    {
+                        $hivePath = Join-Path -Path $windowsDrive -ChildPath "Windows\System32\Config\System"
+
+                        $hive = Mount-RegistryHive -Hive $hivePath
+
+                        foreach ($frameworkVersion in @('v2.0.50727', 'v4.0.30319')) {
+                            if ((Test-Path -Path "HKLM:\$($hive)\SOFTWARE\Wow6432Node\Microsoft\.NetFramework\$frameworkVersion" -ErrorAction 'SilentlyContinue')) {
+                                try {
+                                    Set-ItemProperty -Path "HKLM:\$($hive)\SOFTWARE\Wow6432Node\Microsoft\.NetFramework\$frameworkVersion" -Name 'SchUseStrongCrypto' -Value 0x1 -Type DWord
+                                    Write-Verbose -Message "Default Strong Cryptography enabled (64 bit .Net $frameworkVersion)"
+                                } catch {
+                                    Write-Verbose -Message "failed to enable Default Strong Cryptography (64 bit .Net $frameworkVersion)"
+                                }
+                            }
+                            if ((Test-Path -Path "HKLM:\$($hive)\SOFTWARE\Microsoft\.NetFramework\$frameworkVersion" -ErrorAction 'SilentlyContinue')) {
+                                try {
+                                    Set-ItemProperty -Path "HKLM:\$($hive)\SOFTWARE\Microsoft\.NetFramework\$frameworkVersion" -Name 'SchUseStrongCrypto' -Value 0x1 -Type DWord
+                                    Write-Verbose -Message "Default Strong Cryptography enabled (32 bit .Net $frameworkVersion)"
+                                } catch {
+                                    Write-Verbose -Message "failed to enable Default Strong Cryptography (32 bit .Net $frameworkVersion)"
+                                }
+                            }
+                        }
 
                         Dismount-RegistryHive -HiveMountPoint $hive
                     }
