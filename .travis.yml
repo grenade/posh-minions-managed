@@ -1,9 +1,9 @@
 os: windows
 language: minimal
 before_script:
-  - powershell -executionpolicy bypass -f ci/bootstrap.ps1
+- powershell -executionpolicy bypass -f ci/bootstrap.ps1
 script:
-  - powershell -executionpolicy bypass -f ci/set-version.ps1
+- powershell -executionpolicy bypass -f ci/set-version.ps1
 deploy:
   skip_cleanup: true
   provider: script
@@ -13,4 +13,4 @@ deploy:
     condition: "$TRAVIS_PULL_REQUEST = false"
 env:
   global:
-    secure: ll/RU6KKtz7hSCFJTBbqwr7m/STCAXnW87eXOVH48qmbLDUD0lczoSbLAif1qKoLzhAOvZVS2Ybjms9KHamlkh/kyvkiMmYb/cZ7Dci6p0ygfeAHc52KHtOCF+iWVJAr+8uBNMjPL73JlS3HGsTyi1a27AKdRvttf7YXs3amyRLEVSq6eNwT81Z7toFXTSnXiqzxALkJYxMZZHT0M9BxvuzDxQfItEg/FFmz9oSpiZZ/BegO1bXRUJZivygJjd78FrxpSuudOWZb0kcH33qvITXlgdiOBOkNTc9pB0Yc65nNhKrh8XoWYzxWXy8uNF1IEVfQjtapreoZc9ECCkPNtWAdQW678kESvJoYS7fSIiX0cBx3XawRLrHRaT2qJRu3MoQGd8+b+hYBQCLWUSOUusMGWnMe/DdiOGAg6c8+G9N5O2a8SYy3MtMbLFal+uuu1mTlizc+ZE1fAp9CevfvHmlTroj5IcfV7N+qB7xgn4LGhw5DQFdRDrBp0U5l8f3hrzcDDL8CO34sCPxYBbsXScFOzxUMXCwuiuPln+zwGJkUJjIjpb0OkUApf6rYt+P88vsV7529TkqGY0ayS/he4QUwiJ4wEvhQYtnC7wBCFxx+5eCVlXjyykOwbFEc1//eYNJ+BIRL1V3lAxcVlR+vRbEI8z4lcPmyV/hL0K1eXu4=
+    secure: nVPLmJCvSGof2yx4u7i/Z493Buoy/aoOCbIM/pH17bykdBafOq8RCdYf6Z0lYsX+0GZgGZg013S9c4Nw3TJRihirhhnHjN/xMbp+CKm6fMQvOM91IAq9JGpqfp7Ua4o6VUpRanNGS99ZtP27yAe+tRN97gNN8wiBEX3dZdeJbUYkUHMKB5uRtBWhLf+lY0p3qNNtqfdKy8eHV+3lLKfg6ymVqWZsKxcr3amSFTuoktMVv7NZfLOTZunNKqjPiiId+mZ52uTnhlwye3/Sm9S4mUzYASgh5t5rkV6LewNGQyXrUq3M6lYgOidHtds6azb+LK3bS+WQZwHYyuhYZuu+w3pVclv6HrKBH9n5JZ+IuZ4A1w/WNnVZyH9zV2sWSLbOnCIwnj2iENK68BkFbi6MuMKHk2TbnLLaJNQKA23a/o44hKrbZaNQgD3E4r+qcfSCmeOgb9dOpRtAZBgFqhjN72dZ2wMXMOpMbmfplNlGSO0urgSf1jLQbgurBFaDGhjGfJsBOG3IKmvfIuW60i7eit0a3sce7d0Kv0IXMuw7Ll0a9Upr0F0UdwGOE0S4fQIroOV3E4GRxgxPxaZtHjAtjKiGv/gazwUWjILCXYz/fnWcgMf4cSYQc3ELLvimEehDlW7fQldetYiisp8MqdUu3joVgDxymNui5KLvbHVV8wY=
