@@ -100,7 +100,8 @@ function Get-CloudBucketResource {
         }
       }
       if (Test-Path -Path $destination -ErrorAction SilentlyContinue) {
-        Write-Log -message ('{0} :: {1} fetched from {2}/{3}/{4}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key) -severity 'info';
+        $sizeInBytes = ((Get-Item -Path $destination -ErrorAction SilentlyContinue).Length);
+        Write-Log -message ('{0} :: {1} ({2:n2} gb) fetched from {3}/{4}/{5}' -f $($MyInvocation.MyCommand.Name), $destination, ($sizeInBytes / 1GB), $platform, $bucket, $key) -severity 'info';
       } else {
         Write-Log -message ('{0} :: error fetching {1} from {2}/{3}/{4}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key) -severity 'warn';
       }
@@ -445,18 +446,26 @@ function New-CloudInstanceFromImageExport {
         }
 
         # boot/os disk
+        $uploadSizeInBytes = ((Get-Item -Path $localImagePath).Length);
         $azDiskConfig = (New-AzDiskConfig `
           -SkuName 'StandardSSD_LRS' `
           -OsType 'Windows' `
-          -UploadSizeInBytes ((Get-Item -Path $localImagePath).Length) `
+          -UploadSizeInBytes $uploadSizeInBytes `
           -Location $targetResourceRegion `
           -CreateOption 'Upload');
-        Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2}, completed' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), 'StandardSSD_LRS') -severity 'debug';
+        Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2} and upload size: {3:n2} gb, completed' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), 'StandardSSD_LRS', ($uploadSizeInBytes / 1GB)) -severity 'debug';
         $azDisk = (New-AzDisk `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName ('disk-{0}' -f $targetResourceId) `
           -Disk $azDiskConfig);
-        Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState) -severity 'debug';
+        Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
+        while (-not @('ActiveUpload', 'ReadyToUpload').Contains($azDisk.DiskState)) {
+          $azDisk = (Get-AzDisk `
+            -ResourceGroupName $targetResourceGroupName `
+            -DiskName $azDisk.Name
+          );
+          Write-Log -message ('{0} :: awaiting disk state "ActiveUpload" or "ReadyToUpload" for disk: {1}, in resource group: {2}, with provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
+        }
         $azDiskAccessGrantOperation = (Grant-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName $azDisk.Name `
