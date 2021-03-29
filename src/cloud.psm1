@@ -459,13 +459,13 @@ function New-CloudInstanceFromImageExport {
           -DiskName ('disk-{0}' -f $targetResourceId) `
           -Disk $azDiskConfig);
         Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
-        while (-not @('ActiveUpload', 'ReadyToUpload').Contains($azDisk.DiskState)) {
-          $azDisk = (Get-AzDisk `
-            -ResourceGroupName $targetResourceGroupName `
-            -DiskName $azDisk.Name
-          );
-          Write-Log -message ('{0} :: awaiting disk state "ActiveUpload" or "ReadyToUpload" for disk: {1}, in resource group: {2}, with provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
-        }
+        #while (-not @('ActiveUpload', 'ReadyToUpload').Contains($azDisk.DiskState)) {
+        #  $azDisk = (Get-AzDisk `
+        #    -ResourceGroupName $targetResourceGroupName `
+        #    -DiskName $azDisk.Name
+        #  );
+        #  Write-Log -message ('{0} :: awaiting disk state "ActiveUpload" or "ReadyToUpload" for disk: {1}, in resource group: {2}, with provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
+        #}
         $azDiskAccessGrantOperation = (Grant-AzDiskAccess `
           -ResourceGroupName $targetResourceGroupName `
           -DiskName $azDisk.Name `
