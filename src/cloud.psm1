@@ -362,7 +362,10 @@ function New-CloudInstanceFromImageExport {
     [switch] $disablePlatformAgent = $false,
 
     [Parameter(Mandatory = $false)]
-    [switch] $disableBackgroundInfo = $disablePlatformAgent
+    [switch] $disableBackgroundInfo = $disablePlatformAgent,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $awaitReadyToUploadDiskState = $false
   )
   begin {
     Write-Log -message ('{0} :: begin - {1:o}' -f $($MyInvocation.MyCommand.Name), (Get-Date).ToUniversalTime()) -severity 'trace';
@@ -480,6 +483,7 @@ function New-CloudInstanceFromImageExport {
         $stopwatch = [Diagnostics.Stopwatch]::StartNew();
         $azDisk = (Get-AzDisk -ResourceGroupName $targetResourceGroupName -DiskName $azDiskName);
         while (
+          ($awaitReadyToUploadDiskState) -and
           ($azDisk.DiskState -ne 'ReadyToUpload') -and
           ($stopwatch.Elapsed.TotalSeconds -lt 120)
         ) {
