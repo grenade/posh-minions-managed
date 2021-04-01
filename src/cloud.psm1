@@ -292,6 +292,8 @@ function New-CloudInstanceFromImageExport {
 
     [string] $targetInstanceMachineVariantFormat = 'Standard_F{0}s_v2',
 
+    [string] $targetInstanceHyperVGeneration = $(if ($targetInstanceMachineVariantFormat.EndsWith('_v2')) { 'V2' } else { 'V1' }),
+
     [int] $targetInstanceCpuCount = 2,
 
     [int] $targetInstanceRamGb = 8,
@@ -432,51 +434,93 @@ function New-CloudInstanceFromImageExport {
         Write-Log -message ('{0} :: var/azMachineVariant: {1}' -f $($MyInvocation.MyCommand.Name), $azMachineVariant) -severity 'trace';
 
         # resource group
-        $azResourceGroup = (Get-AzResourceGroup `
-          -Name $targetResourceGroupName `
-          -Location $targetResourceRegion `
-          -ErrorAction SilentlyContinue);
-        if (-not ($azResourceGroup)) {
-          $azResourceGroup = (New-AzResourceGroup `
-            -Name $targetResourceGroupName `
-            -Location $targetResourceRegion);
-          Write-Log -message ('{0} :: resource group create operation for resource group: {1}, in region: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName, $targetResourceRegion, $azResourceGroup.ProvisioningState) -severity 'debug';
-        } else {
-          Write-Log -message ('{0} :: resource group find operation for resource group: {1}, in region: {2}, suceeded' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
+        try {
+          $azResourceGroup = (Get-AzResourceGroup -Name $targetResourceGroupName -Location $targetResourceRegion);
+          if (-not ($azResourceGroup)) {
+            $azResourceGroup = (New-AzResourceGroup `
+              -Name $targetResourceGroupName `
+              -Location $targetResourceRegion);
+            Write-Log -message ('{0} :: resource group create operation for resource group: {1}, in region: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName, $targetResourceRegion, $azResourceGroup.ProvisioningState) -severity 'debug';
+          } else {
+            Write-Log -message ('{0} :: resource group find operation for resource group: {1}, in region: {2}, suceeded' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName, $targetResourceRegion) -severity 'debug';
+          }
+        } catch {
+          Write-Log -message ('{0} :: exception detecting or creating resource group: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception detecting or creating resource group: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $targetResourceGroupName, $_.Exception.InnerException.Message) -severity 'error';
+          }
+          exit 1;
         }
 
         # boot/os disk
-        $uploadSizeInBytes = ((Get-Item -Path $localImagePath).Length);
-        $azDiskConfig = (New-AzDiskConfig `
-          -SkuName 'StandardSSD_LRS' `
-          -OsType 'Windows' `
-          -UploadSizeInBytes $uploadSizeInBytes `
-          -Location $targetResourceRegion `
-          -CreateOption 'Upload');
-        Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2} and upload size: {3:n2} gb, completed' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), 'StandardSSD_LRS', ($uploadSizeInBytes / 1GB)) -severity 'debug';
-        $azDisk = (New-AzDisk `
-          -ResourceGroupName $targetResourceGroupName `
-          -DiskName ('disk-{0}' -f $targetResourceId) `
-          -Disk $azDiskConfig);
-        Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
-        #while (-not @('ActiveUpload', 'ReadyToUpload').Contains($azDisk.DiskState)) {
-        #  $azDisk = (Get-AzDisk `
-        #    -ResourceGroupName $targetResourceGroupName `
-        #    -DiskName $azDisk.Name
-        #  );
-        #  Write-Log -message ('{0} :: awaiting disk state "ActiveUpload" or "ReadyToUpload" for disk: {1}, in resource group: {2}, with provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), ('disk-{0}' -f $targetResourceId), $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
-        #}
-        $azDiskAccessGrantOperation = (Grant-AzDiskAccess `
-          -ResourceGroupName $targetResourceGroupName `
-          -DiskName $azDisk.Name `
-          -DurationInSecond 86400 `
-          -Access 'Write');
-        Write-Log -message ('{0} :: grant access operation on disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessGrantOperation.Status) -severity 'debug';
+        $azDiskName = ('disk-{0}' -f $targetResourceId);
+        try {
+          $uploadSizeInBytes = ((Get-Item -Path $localImagePath).Length);
+          $azDiskConfig = (New-AzDiskConfig `
+            -SkuName 'StandardSSD_LRS' `
+            -OsType 'Windows' `
+            -UploadSizeInBytes $uploadSizeInBytes `
+            -Location $targetResourceRegion `
+            -CreateOption 'Upload' `
+            -HyperVGeneration $targetInstanceHyperVGeneration);
+          Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2}, hyper v generation: {3} and upload size: {4:n2} gb, completed' -f $($MyInvocation.MyCommand.Name), $azDiskName, 'StandardSSD_LRS', $targetInstanceHyperVGeneration, ($uploadSizeInBytes / 1GB)) -severity 'debug';
+          $azDisk = (New-AzDisk `
+            -ResourceGroupName $targetResourceGroupName `
+            -DiskName $azDiskName `
+            -Disk $azDiskConfig);
+          Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
+        } catch {
+          Write-Log -message ('{0} :: exception creating disk: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDiskName, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception creating disk: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDiskName, $_.Exception.InnerException.Message) -severity 'error';
+          }
+          exit 1;
+        }
+
+        $stopwatch = [Diagnostics.Stopwatch]::StartNew();
+        $azDisk = (Get-AzDisk -ResourceGroupName $targetResourceGroupName -DiskName $azDiskName);
+        while (
+          ($azDisk.DiskState -ne 'ReadyToUpload') -and
+          ($stopwatch.Elapsed.TotalSeconds -lt 120)
+        ) {
+          Write-Log -message ('{0} :: disk: {1}, in resource group: {2}, has disk state: "{3}". awaiting disk state: "ReadyToUpload"' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDisk.DiskState) -severity 'debug';
+          $azDisk = (Get-AzDisk -ResourceGroupName $targetResourceGroupName -DiskName $azDiskName);
+        }
+        if ($azDisk.DiskState -ne 'ReadyToUpload') {
+          Write-Log -message ('{0} :: disk: {1}, in resource group: {2}, has disk state: "{3}". timeout reached while awaiting disk state: "ReadyToUpload"' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDisk.DiskState) -severity 'error';
+          exit 1;
+        }
+        $stopwatch.Stop();
+
+        try {
+          $azDiskAccessGrantOperation = (Grant-AzDiskAccess `
+            -ResourceGroupName $targetResourceGroupName `
+            -DiskName $azDisk.Name `
+            -DurationInSecond 86400 `
+            -Access 'Write');
+          Write-Log -message ('{0} :: grant access operation on disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessGrantOperation.Status) -severity 'debug';
+        } catch {
+          Write-Log -message ('{0} :: exception granting disk write access on: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception granting disk write access on: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $_.Exception.InnerException.Message) -severity 'error';
+          }
+          exit 1;
+        }
+
         & AzCopy.exe @('copy', $localImagePath, ($azDiskAccessGrantOperation.AccessSAS), '--blob-type', 'PageBlob');
-        $azDiskAccessRevokeOperation = (Revoke-AzDiskAccess `
-          -ResourceGroupName $targetResourceGroupName `
-          -DiskName $azDisk.Name);
-        Write-Log -message ('{0} :: revoke access operation on disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessRevokeOperation.Status) -severity 'debug';
+
+        try {
+          $azDiskAccessRevokeOperation = (Revoke-AzDiskAccess `
+            -ResourceGroupName $targetResourceGroupName `
+            -DiskName $azDisk.Name);
+          Write-Log -message ('{0} :: revoke access operation on disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessRevokeOperation.Status) -severity 'debug';
+        } catch {
+          Write-Log -message ('{0} :: exception revoking disk write access on: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception revoking disk write access on: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $_.Exception.InnerException.Message) -severity 'error';
+          }
+          exit 1;
+        }
 
         # network security group (firewall rules and exceptions)
         $azNetworkSecurityGroup = (Get-AzNetworkSecurityGroup `
