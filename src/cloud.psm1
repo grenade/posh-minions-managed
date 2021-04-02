@@ -490,7 +490,7 @@ function New-CloudInstanceFromImageExport {
           Write-Log -message ('{0} :: disk: {1}, in resource group: {2}, has disk state: "{3}". awaiting disk state: "ReadyToUpload"' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDisk.DiskState) -severity 'debug';
           $azDisk = (Get-AzDisk -ResourceGroupName $targetResourceGroupName -DiskName $azDiskName);
         }
-        if ($azDisk.DiskState -ne 'ReadyToUpload') {
+        if ($awaitReadyToUploadDiskState -and ($azDisk.DiskState -ne 'ReadyToUpload')) {
           Write-Log -message ('{0} :: disk: {1}, in resource group: {2}, has disk state: "{3}". timeout reached while awaiting disk state: "ReadyToUpload"' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDisk.DiskState) -severity 'error';
           exit 1;
         }
