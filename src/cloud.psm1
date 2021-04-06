@@ -462,6 +462,7 @@ function New-CloudInstanceFromImageExport {
           $azDiskConfig = (New-AzDiskConfig `
             -SkuName 'StandardSSD_LRS' `
             -OsType 'Windows' `
+            -DiskSizeGB @($targetInstanceDisks | ? { ($_.Os) } )[0].SizeInGB `
             -UploadSizeInBytes $uploadSizeInBytes `
             -Location $targetResourceRegion `
             -CreateOption 'Upload' `
