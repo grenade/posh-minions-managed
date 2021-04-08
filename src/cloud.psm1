@@ -467,12 +467,12 @@ function New-CloudInstanceFromImageExport {
             -Location $targetResourceRegion `
             -CreateOption 'Upload' `
             -HyperVGeneration $targetInstanceHyperVGeneration);
-          Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2}, hyper v generation: {3} and upload size: {4:n2} gb, completed' -f $($MyInvocation.MyCommand.Name), $azDiskName, 'StandardSSD_LRS', $targetInstanceHyperVGeneration, ($uploadSizeInBytes / 1GB)) -severity 'debug';
+          Write-Log -message ('{0} :: disk config create operation for disk: {1}, with disk variant: {2}, hyper v generation: {3}, os type: {4}, upload size: {5:n2} gb, state: {6}, completed' -f $($MyInvocation.MyCommand.Name), $azDiskName, $azDiskConfig.Sku.Name, $azDiskConfig.HyperVGeneration, $azDiskConfig.OsType, ($azDiskConfig.DiskSizeBytes / 1GB), $azDiskConfig.DiskState) -severity 'debug';
           $azDisk = (New-AzDisk `
             -ResourceGroupName $targetResourceGroupName `
             -DiskName $azDiskName `
             -Disk $azDiskConfig);
-          Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
+          Write-Log -message ('{0} :: disk create operation for disk: {1}, in resource group: {2}, has provisioning state: {3} and disk state: {4}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $azDisk.ResourceGroupName, $azDisk.ProvisioningState, $azDisk.DiskState) -severity 'debug';
         } catch {
           Write-Log -message ('{0} :: exception creating disk: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDiskName, $_.Exception.Message) -severity 'error';
           if ($_.Exception.InnerException) {
@@ -503,7 +503,12 @@ function New-CloudInstanceFromImageExport {
             -DiskName $azDisk.Name `
             -DurationInSecond 86400 `
             -Access 'Write');
-          Write-Log -message ('{0} :: grant access operation on disk: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessGrantOperation.Status) -severity 'debug';
+          if (($azDiskAccessGrantOperation) -and ($azDiskAccessGrantOperation.AccessSAS)) {
+            Write-Log -message ('{0} :: grant access operation on disk: {1}, in resource group: {2}, returned an access sas with length: {3}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName, $azDiskAccessGrantOperation.AccessSAS.Length) -severity 'debug';
+          } else {
+            Write-Log -message ('{0} :: grant access operation on disk: {1}, in resource group: {2}, did not return an access sas' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $targetResourceGroupName) -severity 'debug';
+            exit 1;
+          }
         } catch {
           Write-Log -message ('{0} :: exception granting disk write access on: {1}. {2}' -f $($MyInvocation.MyCommand.Name), $azDisk.Name, $_.Exception.Message) -severity 'error';
           if ($_.Exception.InnerException) {
