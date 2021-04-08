@@ -292,6 +292,7 @@ function New-CloudInstanceFromImageExport {
 
     [string] $targetInstanceMachineVariantFormat = 'Standard_F{0}s_v2',
 
+    [ValidateSet('V1', 'V2')]
     [string] $targetInstanceHyperVGeneration = $(if ($targetInstanceMachineVariantFormat.EndsWith('_v2')) { 'V2' } else { 'V1' }),
 
     [int] $targetInstanceCpuCount = 2,
