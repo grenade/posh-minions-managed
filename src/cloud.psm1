@@ -100,7 +100,7 @@ function Get-CloudBucketResource {
         }
       }
       if (Test-Path -Path $destination -ErrorAction SilentlyContinue) {
-        $sizeInBytes = ((Get-Item -Path $destination -ErrorAction SilentlyContinue).Length);
+        $sizeInBytes = ((Get-Item -Path $destination).Length);
         Write-Log -message ('{0} :: {1} ({2:n2} gb) fetched from {3}/{4}/{5}' -f $($MyInvocation.MyCommand.Name), $destination, ($sizeInBytes / 1GB), $platform, $bucket, $key) -severity 'info';
       } else {
         Write-Log -message ('{0} :: error fetching {1} from {2}/{3}/{4}' -f $($MyInvocation.MyCommand.Name), $destination, $platform, $bucket, $key) -severity 'warn';
@@ -533,10 +533,17 @@ function New-CloudInstanceFromImageExport {
         }
 
         # network security group (firewall rules and exceptions)
-        $azNetworkSecurityGroup = (Get-AzNetworkSecurityGroup `
-          -Name $targetFirewallConfigurationName `
-          -ResourceGroupName $targetResourceGroupName `
-          -ErrorAction SilentlyContinue);
+        try {
+          $azNetworkSecurityGroup = (Get-AzNetworkSecurityGroup `
+            -Name $targetFirewallConfigurationName `
+            -ResourceGroupName $targetResourceGroupName);
+        } catch {
+          $azNetworkSecurityGroup = $false;
+          Write-Log -message ('{0} :: exception getting network security group: {1} in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetFirewallConfigurationName, $targetResourceGroupName, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception getting network security group: {1} in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetFirewallConfigurationName, $targetResourceGroupName, $_.Exception.InnerException.Message) -severity 'error';
+          }
+        }
         if (-not ($azNetworkSecurityGroup)) {
           $azNetworkSecurityRuleConfigs = @($targetFirewallRules | % { (New-AzNetworkSecurityRuleConfig `
             -Name $_.Name `
@@ -560,10 +567,17 @@ function New-CloudInstanceFromImageExport {
         }
 
         # virtual network and subnet
-        $azVirtualNetwork = (Get-AzVirtualNetwork `
-          -Name $targetVirtualNetworkName `
-          -ResourceGroupName $targetResourceGroupName `
-          -ErrorAction SilentlyContinue);
+        try {
+          $azVirtualNetwork = (Get-AzVirtualNetwork `
+            -Name $targetVirtualNetworkName `
+            -ResourceGroupName $targetResourceGroupName);
+        } catch {
+          $azVirtualNetwork = $false;
+          Write-Log -message ('{0} :: exception getting virtual network: {1} in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName, $targetResourceGroupName, $_.Exception.Message) -severity 'error';
+          if ($_.Exception.InnerException) {
+            Write-Log -message ('{0} :: inner exception getting virtual network: {1} in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetVirtualNetworkName, $targetResourceGroupName, $_.Exception.InnerException.Message) -severity 'error';
+          }
+        }
         if (-not ($azVirtualNetwork)) {
           $azVirtualNetworkSubnetConfig = (New-AzVirtualNetworkSubnetConfig `
             -Name $targetSubnetName `
@@ -618,10 +632,17 @@ function New-CloudInstanceFromImageExport {
         # storage account
         $targetStorageAccountName = ('{0}cib' -f $targetResourceGroupName.Replace('rg-', '').Replace('-', ''));
         try {
-          $azStorageAccount = (Get-AzStorageAccount `
-            -ResourceGroupName $targetResourceGroupName `
-            -Name $targetStorageAccountName `
-            -ErrorAction 'SilentlyContinue');
+          try {
+            $azStorageAccount = (Get-AzStorageAccount `
+              -Name $targetStorageAccountName `
+              -ResourceGroupName $targetResourceGroupName);
+          } catch {
+            $azStorageAccount = $false;
+            Write-Log -message ('{0} :: exception getting storage account: {1} in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetStorageAccountName, $targetResourceGroupName, $_.Exception.Message) -severity 'error';
+            if ($_.Exception.InnerException) {
+              Write-Log -message ('{0} :: inner exception getting storage account: {1} in resource group: {2}. {3}' -f $($MyInvocation.MyCommand.Name), $targetStorageAccountName, $targetResourceGroupName, $_.Exception.InnerException.Message) -severity 'error';
+            }
+          }
           if ($azStorageAccount) {
             Write-Log -message ('{0} :: detected storage account: {1}, for resource group: {2}' -f $($MyInvocation.MyCommand.Name), $azStorageAccount.StorageAccountName, $targetResourceGroupName) -severity 'debug';
           } else {
@@ -723,7 +744,6 @@ function New-CloudInstanceFromImageExport {
             -Tag $targetInstanceTags `
             -DisableBginfoExtension:$disableBackgroundInfo `
             -VM $azVM `
-            -ErrorAction SilentlyContinue `
             -ErrorVariable 'newAzVmError');
           if (($newAzVmError) -and ($newAzVmError.Exception) -and ($newAzVmError.Exception.Message)) {
             switch -Regex ($newAzVmError.Exception.Message) {
@@ -812,8 +832,7 @@ function New-CloudImageFromInstance {
           $stopOperation = (Stop-AzVM `
             -ResourceGroupName $resourceGroupName `
             -Name $instanceName `
-            -Force `
-            -ErrorAction SilentlyContinue);
+            -Force);
           Write-Log -message ('{0} :: stop operation on instance: {1}, in resource group: {2}, has status: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $stopOperation.Status) -severity 'debug';
         } catch {
           Write-Log -message ('{0} :: stop operation on instance: {1}, in resource group: {2}, failed: {3}' -f $($MyInvocation.MyCommand.Name), $instanceName, $resourceGroupName, $_.Exception.Message) -severity 'error';
