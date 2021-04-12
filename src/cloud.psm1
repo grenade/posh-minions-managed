@@ -284,6 +284,8 @@ function New-CloudInstanceFromImageExport {
     [Parameter(Mandatory = $true)]
     [string] $targetResourceGroupName,
 
+    [string] $targetStorageAccountName = ('sa{0}' -f $targetResourceGroupName.Replace('rg-', '').Replace('-', '')),
+
     [Parameter(Mandatory = $true)]
     [string] $targetResourceRegion,
 
@@ -630,7 +632,6 @@ function New-CloudInstanceFromImageExport {
         Write-Log -message ('{0} :: instance config create operation for instance: {1}, with machine variant: {2}, completed' -f $($MyInvocation.MyCommand.Name), $targetInstanceName, $azMachineVariant) -severity 'debug';
 
         # storage account
-        $targetStorageAccountName = ('{0}cib' -f $targetResourceGroupName.Replace('rg-', '').Replace('-', ''));
         try {
           try {
             $azStorageAccount = (Get-AzStorageAccount `
